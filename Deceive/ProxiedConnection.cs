@@ -1,4 +1,8 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security;
+using System.Threading;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Security;
@@ -22,6 +26,14 @@ internal class ProxiedConnection
     private bool InsertedFakePlayer { get; set; } = false;
     private bool SentFakePlayerPresence { get; set; } = false;
     private string? ValorantVersion { get; set; } = null;
+
+    // Writes to each stream can come from several tasks (proxy loops, tray actions, settings reloads).
+    private readonly SemaphoreSlim _incomingWriteLock = new(1, 1);
+    private readonly SemaphoreSlim _outgoingWriteLock = new(1, 1);
+
+    // Friends we have sent our real presence to directly (the "visibleTo" list).
+    private HashSet<string> _directedTo = new(StringComparer.OrdinalIgnoreCase);
+    private readonly FriendDirectory.Parser _rosterParser = new();
 
     internal event EventHandler? ConnectionErrored;
 
@@ -66,7 +78,7 @@ internal class ProxiedConnection
                 }
                 else
                 {
-                    await Outgoing.WriteAsync(bytes, 0, byteCount);
+                    await WriteOutgoingAsync(bytes, 0, byteCount);
                     // don't log anything that contains a JWT
                     if (!content.Contains("token>")) Trace.WriteLine("<!--RC TO SERVER-->" + content);
                 }
@@ -105,22 +117,27 @@ internal class ProxiedConnection
                 {
                     InsertedFakePlayer = true;
                     Trace.WriteLine("<!--SERVER TO RC ORIGINAL-->" + content);
+                    await LearnRosterAsync(content);
+                    var settings = AppSettings.Current;
+                    var fakeName = "&#9;" + SecurityElement.Escape(settings.FriendName);
+                    var fakeGroup = SecurityElement.Escape(settings.FriendGroup);
                     content = content.Insert(content.IndexOf(roster, StringComparison.Ordinal) + roster.Length,
-                        "<item jid='41c322a1-b328-495b-a004-5ccd3e45eae8@eu1.pvp.net' name='&#9;Deceive Active!' subscription='both' puuid='41c322a1-b328-495b-a004-5ccd3e45eae8'>" +
-                        "<group priority='9999'>Deceive</group>" +
+                        $"<item jid='41c322a1-b328-495b-a004-5ccd3e45eae8@eu1.pvp.net' name='{fakeName}' subscription='both' puuid='41c322a1-b328-495b-a004-5ccd3e45eae8'>" +
+                        $"<group priority='9999'>{fakeGroup}</group>" +
                         "<state>online</state>" +
-                        "<id name='&#9;Deceive Active!' tagline='...'/>" +
-                        "<lol name='&#9;Deceive Active!'/>" +
-                        "<platforms><riot name='&#9;Deceive Active' tagline='...'/></platforms>" +
+                        $"<id name='{fakeName}' tagline='...'/>" +
+                        $"<lol name='{fakeName}'/>" +
+                        $"<platforms><riot name='{fakeName}' tagline='...'/></platforms>" +
                         "</item>");
                     var contentBytes = Encoding.UTF8.GetBytes(content);
-                    await Incoming.WriteAsync(contentBytes, 0, contentBytes.Length);
+                    await WriteIncomingAsync(contentBytes, 0, contentBytes.Length);
                     Trace.WriteLine("<!--DECEIVE TO RC-->" + content);
                 }
                 else
                 {
-                    await Incoming.WriteAsync(bytes, 0, byteCount);
+                    await WriteIncomingAsync(bytes, 0, byteCount);
                     Trace.WriteLine("<!--SERVER TO RC-->" + content);
+                    await LearnRosterAsync(content);
                 }
             } while (byteCount != 0 && Connected);
         }
@@ -136,6 +153,28 @@ internal class ProxiedConnection
         }
     }
 
+    /// <summary>
+    /// Records friends from roster data. If a friend on the visibleTo list shows up for the
+    /// first time, re-send presence so they get our real status.
+    /// </summary>
+    private async Task LearnRosterAsync(string content)
+    {
+        try
+        {
+            var added = _rosterParser.Feed(content);
+            if (added.Count == 0 || string.IsNullOrEmpty(LastPresence) || !MainController.Enabled || MainController.Status == "chat")
+                return;
+
+            var wanted = FriendDirectory.Resolve(AppSettings.Current.VisibleTo, out _, out _);
+            if (added.Any(jid => wanted.Contains(jid, StringComparer.OrdinalIgnoreCase) && !_directedTo.Contains(jid)))
+                await PossiblyRewriteAndResendPresenceAsync(LastPresence, MainController.Status);
+        }
+        catch (Exception e)
+        {
+            Trace.WriteLine("Error reading roster: " + e);
+        }
+    }
+
     private async Task PossiblyRewriteAndResendPresenceAsync(string content, string targetStatus)
     {
         try
@@ -148,6 +187,12 @@ internal class ProxiedConnection
                 return;
             if (xml.Root.HasElements is false)
                 return;
+
+            // Keep untouched copies of the broadcast presence(s) for friends on the visibleTo list.
+            var realPresences = xml.Root.Elements("presence")
+                .Where(p => p.Attribute("to") is null && p.Attribute("type") is null)
+                .Select(p => new XElement(p))
+                .ToList();
 
             foreach (var presence in xml.Root.Elements())
             {
@@ -232,14 +277,76 @@ internal class ProxiedConnection
             }
 
             var bytes = Encoding.UTF8.GetBytes(sb.ToString());
-            await Outgoing.WriteAsync(bytes, 0, bytes.Length);
+            await WriteOutgoingAsync(bytes, 0, bytes.Length);
             Trace.WriteLine("<!--DECEIVE TO SERVER-->" + sb);
+
+            await SendDirectedPresencesAsync(xml, realPresences, targetStatus, xws);
         }
         catch (Exception e)
         {
             Trace.WriteLine(e);
             Trace.WriteLine("Error rewriting presence.");
         }
+    }
+
+    /// <summary>
+    /// While masked (offline/mobile), sends our real presence directly to friends on the visibleTo
+    /// list. This goes out after the masked broadcast, so for those friends it is the latest
+    /// presence and wins. Friends removed from the list get the masked presence again.
+    /// </summary>
+    private async Task SendDirectedPresencesAsync(XDocument maskedXml, List<XElement> realPresences, string targetStatus, XmlWriterSettings xws)
+    {
+        if (realPresences.Count == 0)
+            return;
+
+        var wanted = targetStatus == "chat"
+            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(FriendDirectory.Resolve(AppSettings.Current.VisibleTo, out _, out _), StringComparer.OrdinalIgnoreCase);
+
+        var removed = _directedTo.Where(j => !wanted.Contains(j)).ToList();
+        if (wanted.Count == 0 && removed.Count == 0)
+        {
+            _directedTo = wanted;
+            return;
+        }
+
+        var maskedPresences = maskedXml.Root!.Elements("presence")
+            .Where(p => p.Attribute("to") is null && p.Attribute("type") is null)
+            .ToList();
+
+        var sb = new StringBuilder();
+        using (var xw = XmlWriter.Create(sb, xws))
+        {
+            var n = 0;
+            void Write(XElement source, string jid)
+            {
+                var copy = new XElement(source);
+                copy.SetAttributeValue("to", jid);
+                var id = copy.Attribute("id")?.Value;
+                copy.SetAttributeValue("id", (string.IsNullOrEmpty(id) ? "expr" : id) + "-v" + n++);
+                copy.WriteTo(xw);
+            }
+
+            // Only friends who left the list need the masked status re-sent (when going online,
+            // the normal broadcast already reaches everyone).
+            if (targetStatus != "chat")
+                foreach (var jid in removed)
+                foreach (var p in maskedPresences)
+                    Write(p, jid);
+
+            foreach (var jid in wanted)
+            foreach (var p in realPresences)
+                Write(p, jid);
+        }
+
+        _directedTo = wanted;
+
+        if (sb.Length == 0)
+            return;
+
+        var bytes = Encoding.UTF8.GetBytes(sb.ToString());
+        await WriteOutgoingAsync(bytes, 0, bytes.Length);
+        Trace.WriteLine("<!--DECEIVE TO SERVER (visibleTo)-->" + sb);
     }
 
     private async Task SendFakePlayerPresenceAsync()
@@ -261,14 +368,14 @@ internal class ProxiedConnection
                                                "premierPresenceData":
                                                {
                                                    "rosterId": "",
-                                                   "rosterName": "Deceive is active. Ignore any version mismatch warnings.",
-                                                   "rosterTag": "Deceive Active!",
-                                                   "rosterType": "VCT",
+                                                   "rosterName": "",
+                                                   "rosterTag": "",
+                                                   "rosterType": "",
                                                    "division": 0,
                                                    "score": 0,
                                                    "plating": 0,
                                                    "showAura": false,
-                                                   "showTag": true,
+                                                   "showTag": false,
                                                    "showPlating": false
                                                },
                                                "matchPresenceData":
@@ -292,7 +399,7 @@ internal class ProxiedConnection
                                                    "isPartyCrossPlayEnabled": false,
                                                    "isPlayerCrossPlayEnabled": false,
                                                    "partyPrecisePlatformTypes": 1,
-                                                   "customGameName": "Deceive Active!",
+                                                   "customGameName": "",
                                                    "customGameTeam": "",
                                                    "maxPartySize": 5,
                                                    "tournamentId": "",
@@ -305,14 +412,17 @@ internal class ProxiedConnection
                                                },
                                                "playerPresenceData":
                                                {
-                                                   "playerCardId": "893deca1-4123-9c1f-2985-aa9de74cb512",
-                                                   "playerTitleId": "e3ca05a4-4e44-9afe-3791-7d96ca8f71fa",
-                                                   "accountLevel": 999,
+                                                   "playerCardId": "{CARD}",
+                                                   "playerTitleId": "{TITLE}",
+                                                   "accountLevel": {LEVEL},
                                                    "competitiveTier": 0,
                                                    "leaderboardPosition": 0
                                                }
                                               }
-                                   """.Replace("{VERSION}", ValorantVersion ?? "unknown"))
+                                   """.Replace("{VERSION}", ValorantVersion ?? "unknown")
+                                     .Replace("{CARD}", AppSettings.Current.PlayerCardId)
+                                     .Replace("{TITLE}", AppSettings.Current.PlayerTitleId)
+                                     .Replace("{LEVEL}", AppSettings.Current.AccountLevel.ToString()))
         );
 
         var randomStanzaId = Guid.NewGuid();
@@ -332,7 +442,7 @@ internal class ProxiedConnection
             "</presence>";
 
         var bytes = Encoding.UTF8.GetBytes(presenceMessage);
-        await Incoming.WriteAsync(bytes, 0, bytes.Length);
+        await WriteIncomingAsync(bytes, 0, bytes.Length);
         Trace.WriteLine("<!--DECEIVE TO RC-->" + presenceMessage);
     }
 
@@ -347,7 +457,7 @@ internal class ProxiedConnection
             $"<message from='41c322a1-b328-495b-a004-5ccd3e45eae8@eu1.pvp.net/RC-Deceive' stamp='{stamp}' id='fake-{stamp}' type='chat'><body>{message}</body></message>";
 
         var bytes = Encoding.UTF8.GetBytes(chatMessage);
-        await Incoming.WriteAsync(bytes, 0, bytes.Length);
+        await WriteIncomingAsync(bytes, 0, bytes.Length);
         Trace.WriteLine("<!--DECEIVE TO RC-->" + chatMessage);
     }
 
@@ -357,6 +467,31 @@ internal class ProxiedConnection
             return;
 
         await PossiblyRewriteAndResendPresenceAsync(LastPresence, newStatus);
+    }
+
+    private async Task WriteOutgoingAsync(byte[] buffer, int offset, int count)
+    {
+        await _outgoingWriteLock.WaitAsync();
+        try { await Outgoing.WriteAsync(buffer, offset, count); }
+        finally { _outgoingWriteLock.Release(); }
+    }
+
+    private async Task WriteIncomingAsync(byte[] buffer, int offset, int count)
+    {
+        await _incomingWriteLock.WaitAsync();
+        try { await Incoming.WriteAsync(buffer, offset, count); }
+        finally { _incomingWriteLock.Release(); }
+    }
+
+    /// <summary>Re-sends presence and the fake friend's card after the settings file changed.</summary>
+    public async Task ApplySettingsAsync()
+    {
+        if (!Connected)
+            return;
+        if (!string.IsNullOrEmpty(LastPresence) && MainController.Enabled)
+            await PossiblyRewriteAndResendPresenceAsync(LastPresence, MainController.Status);
+        if (InsertedFakePlayer)
+            await SendFakePlayerPresenceAsync();
     }
 
     private void OnConnectionErrored()

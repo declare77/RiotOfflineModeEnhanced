@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -218,7 +218,7 @@ internal static class Utils
             return;
 
         var result = MessageBox.Show(
-            "Your machine is failing to resolve some required domains. You will need to switch DNS servers or add an entry to your hosts file. Please see the Deceive FAQ for more information. Deceive will not work until this issue is resolved. Would you like to open the FAQ now?",
+            $"Your machine is failing to resolve some required domains. You will need to switch DNS servers or add an entry to your hosts file. {AppInfo.Name} is based on Deceive, and the Deceive FAQ explains how to fix this. {AppInfo.Name} will not work until this issue is resolved. Would you like to open the FAQ now?",
             StartupHandler.DeceiveTitle,
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Question,

@@ -10,7 +10,7 @@ namespace Deceive;
 
 internal static class StartupHandler
 {
-    public static string DeceiveTitle => "Deceive " + Utils.DeceiveVersion;
+    public static string DeceiveTitle => $"{AppInfo.Name} " + Utils.DeceiveVersion;
 
     // Arguments are parsed through System.CommandLine.DragonFruit.
     /// <param name="args">The game to be launched, or automatically determined if not passed.</param>
@@ -39,8 +39,8 @@ internal static class StartupHandler
             Trace.WriteLine(ex);
             // Show some kind of message so that Deceive doesn't just disappear.
             MessageBox.Show(
-                "Deceive encountered an error and couldn't properly initialize itself. " +
-                "Please contact the creator through GitHub (https://github.com/molenzwiebel/Deceive) or Discord.\n\n" + ex,
+                $"{AppInfo.Name} encountered an error and couldn't properly initialize itself. " +
+                $"Try restarting {AppInfo.Name}. If it keeps happening, send the details below to whoever gave you {AppInfo.Name}.\n\n" + ex,
                 DeceiveTitle,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error,
@@ -57,8 +57,8 @@ internal static class StartupHandler
         if (Utils.IsClientRunning() && !(riotClientParams?.Contains("allow-multiple-clients") ?? false))
         {
             var result = MessageBox.Show(
-                "The Riot Client is currently running. In order to mask your online status, the Riot Client needs to be started by Deceive. " +
-                "Do you want Deceive to stop the Riot Client and games launched by it, so that it can restart with the proper configuration?",
+                $"The Riot Client is currently running. In order to mask your online status, the Riot Client needs to be started by {AppInfo.Name}. " +
+                $"Do you want {AppInfo.Name} to stop the Riot Client and games launched by it, so that it can restart with the proper configuration?",
                 DeceiveTitle,
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question,
@@ -86,8 +86,7 @@ internal static class StartupHandler
         // if we can't resolve deceive-localhost.molenzwiebel.xyz to 127.0.0.1, boom
         Utils.EnsureLocalhostResolution();
 
-        // Step 0: Check for updates in the background.
-        _ = Utils.CheckForUpdatesAsync();
+        // Step 0: (Update check disabled: it points at upstream Deceive releases, not the app.)
 
         // Step 1: Open a port for our chat proxy, so we can patch chat port into clientconfig.
         var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -102,8 +101,7 @@ internal static class StartupHandler
         if (riotClientPath is null)
         {
             MessageBox.Show(
-                "Deceive was unable to find the path to the Riot Client. Usually this can be resolved by launching any Riot Games game once, then launching Deceive again. " +
-                "If this does not resolve the issue, please file a bug report through GitHub (https://github.com/molenzwiebel/Deceive) or Discord.",
+                $"{AppInfo.Name} was unable to find the path to the Riot Client. Usually this can be resolved by launching any Riot Games game once, then launching {AppInfo.Name} again.",
                 DeceiveTitle,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error,
@@ -147,9 +145,8 @@ internal static class StartupHandler
         if (serverCertificate is null)
         {
             MessageBox.Show(
-                "Deceive was unable to obtain a necessary security certificate for intercepting and modifying the chat connection. This normally happens when there's " +
-                "a problem with the server that provides the certificate, but it can also be caused by network issues on your end. Please check if there's a new version" +
-                " of Deceive available, check your network connection, or contact the creator through GitHub (https://github.com/molenzwiebel/Deceive) or Discord.",
+                $"{AppInfo.Name} was unable to obtain a necessary security certificate for intercepting and modifying the chat connection. This normally happens when there's " +
+                "a problem with the server that provides the certificate, but it can also be caused by network issues on your end. Please check your network connection and try again.",
                 DeceiveTitle,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error,

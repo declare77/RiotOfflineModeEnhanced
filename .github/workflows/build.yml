@@ -1,25 +1,95 @@
-name: Windows Build (.NET Framework 4.7.2)
+name: Build
+
+# Every push and pull request is built on a clean GitHub-hosted Windows machine.
+# Pushing a tag like v1.0.0 also publishes a GitHub Release with the zip, its SHA-256
+# checksum and a build provenance attestation, so anyone can verify the download was
+# built by this workflow from this repository's source.
 
 on:
   push:
     branches: [ master ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ master ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+env:
+  APP_NAME: RiotOfflineModeEnhanced
+
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write       # create the release
+      id-token: write       # build provenance attestation
+      attestations: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
+      - name: Build
+        run: dotnet build Deceive/Deceive.csproj -c Release -p:AppName=${{ env.APP_NAME }} -p:DebugType=None -p:DebugSymbols=false
 
-      - name: Restore NuGet packages
-        run: nuget restore Deceive.sln
+      - name: Package
+        shell: pwsh
+        run: |
+          $name = $env:APP_NAME
+          $out = "Deceive/bin/Release/net472"
+          $dir = "dist/$name"
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          Copy-Item "$out/$name.exe", "$out/$name.exe.config" $dir
+          Copy-Item LICENSE "$dir/LICENSE.txt"
+          $repoUrl = "${{ github.server_url }}/${{ github.repository }}"
+          (Get-Content packaging/README.txt -Raw).Replace('{{REPO_URL}}', $repoUrl) | Set-Content "$dir/README.txt" -Encoding utf8
+          Compress-Archive -Path $dir -DestinationPath "dist/$name.zip" -Force
+          $hash = (Get-FileHash "dist/$name.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name.zip" | Set-Content "dist/$name.zip.sha256" -Encoding ascii
+          $exeHash = (Get-FileHash "$dir/$name.exe" -Algorithm SHA256).Hash.ToLower()
+          "ZIP_SHA256=$hash" >> $env:GITHUB_ENV
+          "EXE_SHA256=$exeHash" >> $env:GITHUB_ENV
+          "### Build output`n`n| File | SHA-256 |`n|---|---|`n| $name.zip | ``$hash`` |`n| $name.exe | ``$exeHash`` |" >> $env:GITHUB_STEP_SUMMARY
 
-      - name: Build solution
-        run: msbuild Deceive.sln /p:Configuration=Release
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}
+          path: |
+            dist/${{ env.APP_NAME }}.zip
+            dist/${{ env.APP_NAME }}.zip.sha256
+
+      - name: Attest build provenance
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/${{ env.APP_NAME }}.zip
+            dist/${{ env.APP_NAME }}/${{ env.APP_NAME }}.exe
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ env.APP_NAME }} ${{ github.ref_name }}
+          files: |
+            dist/${{ env.APP_NAME }}.zip
+            dist/${{ env.APP_NAME }}.zip.sha256
+          body: |
+            Download **${{ env.APP_NAME }}.zip**, extract it, and run `${{ env.APP_NAME }}.exe`. See the README inside for details.
+
+            This release was built automatically by GitHub Actions from commit ${{ github.sha }} of this repository (no manual uploads).
+
+            | File | SHA-256 |
+            |---|---|
+            | ${{ env.APP_NAME }}.zip | `${{ env.ZIP_SHA256 }}` |
+            | ${{ env.APP_NAME }}.exe | `${{ env.EXE_SHA256 }}` |
+
+            Verify that a download came from this repository's build:
+            ```
+            gh attestation verify ${{ env.APP_NAME }}.zip --repo ${{ github.repository }}
+            ```
+
+            Windows may show "Windows protected your PC" because the app isn't code-signed. Click **More info** → **Run anyway**.

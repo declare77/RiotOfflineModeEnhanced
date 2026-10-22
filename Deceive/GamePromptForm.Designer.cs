@@ -1,4 +1,4 @@
-﻿namespace Deceive
+namespace Deceive
 {
     internal partial class GamePromptForm
     {
@@ -141,7 +141,7 @@
             this.Controls.Add(this.label1);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "GamePromptForm";
-            this.Text = "Deceive";
+            this.Text = AppInfo.Name;
             this.Load += new System.EventHandler(this.OnFormLoad);
             this.ResumeLayout(false);
             this.PerformLayout();
