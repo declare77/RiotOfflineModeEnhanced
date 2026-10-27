@@ -47,6 +47,11 @@ USING IT
   is in your store, you get a Windows notification. History lists every
   daily store the app has seen.
 
+- The Career tab (VALORANT) shows your rank and how far you are from the
+  next one, this session's results, trends over your recent matches, your
+  match history with scoreboards, and your win rate on each map and agent.
+  Each match is downloaded once and then kept on your PC.
+
 - When agent select starts, the window's taskbar button flashes and a
   chime plays (turn either off at the top of the Agent select tab).
 

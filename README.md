@@ -38,6 +38,8 @@ Most "appear offline" tools are all-or-nothing: either everybody sees you or nob
 | 🗓️ **Store history** | Every daily store the app has seen, so you can see how often skins come up. |
 | 🔔 **Agent select alert** | Flashes the taskbar button and plays a chime when agent select starts, so you can tab out while you queue. Read from your own chat status, no extra requests. |
 | 👥 **Agent select tab** | Your team's names, agents (hovering or locked), level, current rank and RR, this act's record and peak rank, while you pick. Hidden names stay hidden (their stats still show), and hidden ranks stay hidden. VALORANT only. |
+| 📈 **Career tab** | Rank and RR with a progress bar and "wins to rank up", this session's record and RR, trends (ACS, K/D, headshot %, damage per round), match history with full scoreboards and party markers, and your win rate by map and agent. Matches are fetched once and kept on your PC. |
+| 🤝 **Played with before** | Agent select shows teammates you've played with or against, and how those games went. |
 | 💬 **Chat commands** | Message the helper friend `offline`, `online`, `mobile`, `status`, `visible` or `help` without leaving the client. |
 | ⚙️ **Settings file** | `RiotOfflineModeEnhanced-settings.json` sits next to the exe. Edit it and save, and changes apply live. |
 

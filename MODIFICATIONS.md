@@ -24,6 +24,10 @@ Changes from upstream Deceive:
   history in `%APPDATA%\Deceive\store-history-*.json`.
 - Agent select alert (`Alerts.cs`, `ValorantPresence.cs`): reads your own VALORANT state from the presence
   the Riot Client already sends through the relay, then flashes the taskbar button and plays a chime.
+- Career tab (`CareerPanel.cs`, `MatchData.cs`): rank progress, session tracker, trends, match history with
+  scoreboards and party markers, map and agent breakdown. Matches are trimmed and cached in
+  `%APPDATA%\Deceive\matches` so each is fetched once. Scoreboards only name you, your party, your friends and
+  players whose names were visible in agent select.
 - Agent select tab (`AgentSelectPanel.cs`): your team's names, agents, level, rank, act record and peak rank
   during agent select. Hidden names stay hidden unless they're on your friends list (their stats still show); hidden act ranks stay hidden. Requests
   are only made while the tab is open and the window isn't minimized.

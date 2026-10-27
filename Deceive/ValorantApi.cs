@@ -438,6 +438,16 @@ internal static class ValorantApi
         }
     }
 
+    // ------------------------------------------------------------------ simple requests
+
+    /// <summary>GET on your shard's pd server (match history, MMR, ...). Null for 404.</summary>
+    internal static Task<JsonNode?> GetPdAsync(string path) => SendAsync(HttpMethod.Get, s => $"{s.Pd}/{path}");
+
+    /// <summary>GET on your region's glz server (agent select, live match, party). Null for 404.</summary>
+    internal static Task<JsonNode?> GetGlzAsync(string path) => SendAsync(HttpMethod.Get, s => $"{s.Glz}/{path}");
+
+    internal static async Task<string> GetPuuidAsync() => (await GetSessionAsync().ConfigureAwait(false)).Puuid;
+
     // ------------------------------------------------------------------ store
 
     internal sealed class StoreOffer
@@ -690,6 +700,13 @@ internal static class ValorantApi
     }
 
     private static readonly Dictionary<string, (string name, string tag)> NameCache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>A name seen (not hidden) in one of your agent selects or matches, if any.</summary>
+    internal static (string name, string tag)? KnownName(string puuid)
+    {
+        lock (NameCache)
+            return NameCache.TryGetValue(puuid, out var n) ? n : null;
+    }
 
     internal static void ApplyNames(Pregame pregame, JsonNode? names)
     {

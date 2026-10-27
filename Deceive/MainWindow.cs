@@ -127,9 +127,10 @@ internal sealed class MainWindow : Form
     private readonly TabBar _tabs;
     private readonly StorePanel _storePanel;
     private readonly AgentSelectPanel _agentPanel;
+    private readonly CareerPanel _careerPanel;
     private Control[] _statusControls = Array.Empty<Control>();
 
-    private const int StatusTab = 0, StoreTab = 1, AgentTab = 2;
+    private const int StatusTab = 0, StoreTab = 1, AgentTab = 2, CareerTab = 3;
 
     private readonly Timer _refreshTimer = new() { Interval = 350 };
     private readonly Timer _applyTimer = new() { Interval = 600 };
@@ -199,14 +200,15 @@ internal sealed class MainWindow : Form
         _settingsLink = new LinkText(_s, "Edit settings file");
         _settingsLink.Click += (_, _) => AppSettings.OpenInEditor();
 
-        _tabs = new TabBar(_s, new[] { "Status", "Store", "Agent select" });
+        _tabs = new TabBar(_s, new[] { "Status", "Store", "Agent select", "Career" });
         _tabs.SelectedChanged += (_, _) => OnTabChanged();
 
         _storePanel = new StorePanel(_s) { Visible = false };
         _agentPanel = new AgentSelectPanel(_s) { Visible = false };
+        _careerPanel = new CareerPanel(_s) { Visible = false };
 
         _statusControls = new Control[] { _status, _search, _chips, _empty, _list };
-        Controls.AddRange(new Control[] { _masking, _tabs, _status, _search, _chips, _empty, _list, _storePanel, _agentPanel, _keepOnTop, _settingsLink });
+        Controls.AddRange(new Control[] { _masking, _tabs, _status, _search, _chips, _empty, _list, _storePanel, _agentPanel, _careerPanel, _keepOnTop, _settingsLink });
         ResumeLayout(false);
 
         _refreshTimer.Tick += (_, _) =>
@@ -226,6 +228,7 @@ internal sealed class MainWindow : Form
         ApplyKeepOnTop();
         LayoutAll();
         RefreshAll();
+        MatchData.Warm();
     }
 
     private int D(float px) => (int)Math.Round(px * _s);
@@ -287,7 +290,13 @@ internal sealed class MainWindow : Form
     {
         base.OnMouseWheel(e);
         // Scroll the open page even when the wheel event lands on the window itself.
-        PagePanel? page = _tabs.SelectedIndex == StoreTab ? _storePanel : _tabs.SelectedIndex == AgentTab ? _agentPanel : null;
+        PagePanel? page = _tabs.SelectedIndex switch
+        {
+            StoreTab => _storePanel,
+            AgentTab => _agentPanel,
+            CareerTab => _careerPanel,
+            _ => null
+        };
         page?.ScrollBy(-e.Delta * D(60) / 120);
     }
 
@@ -304,6 +313,7 @@ internal sealed class MainWindow : Form
             c.Visible = tab == StatusTab && (c != _empty || _emptyWanted);
         _storePanel.Visible = tab == StoreTab;
         _agentPanel.Visible = tab == AgentTab;
+        _careerPanel.Visible = tab == CareerTab;
         _tabs.Invalidate();
         if (tab == StatusTab && _empty.Visible) _empty.BringToFront();
         UpdatePageActivity();
@@ -313,10 +323,11 @@ internal sealed class MainWindow : Form
     /// <summary>The Store and Agent select tabs only talk to Riot while you can see them.</summary>
     private void UpdatePageActivity()
     {
-        if (_tabs is null || _storePanel is null || _agentPanel is null) return;
+        if (_tabs is null || _storePanel is null || _agentPanel is null || _careerPanel is null) return;
         var showing = Visible && WindowState != FormWindowState.Minimized;
         _storePanel.SetActive(showing && _tabs.SelectedIndex == StoreTab);
         _agentPanel.SetActive(showing && _tabs.SelectedIndex == AgentTab);
+        _careerPanel.SetActive(showing && _tabs.SelectedIndex == CareerTab);
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
@@ -519,7 +530,7 @@ internal sealed class MainWindow : Form
 
     private void LayoutAll()
     {
-        if (_list is null || _tabs is null || _agentPanel is null) return;
+        if (_list is null || _tabs is null || _agentPanel is null || _careerPanel is null) return;
         var w = ClientSize.Width;
         var h = ClientSize.Height;
         var pad = D(20);
@@ -539,6 +550,7 @@ internal sealed class MainWindow : Form
         var page = new Rectangle(pad, contentTop, inner, Math.Max(D(80), h - footerH - D(8) - contentTop));
         _storePanel.Bounds = page;
         _agentPanel.Bounds = page;
+        _careerPanel.Bounds = page;
 
         var y = contentTop;
         _statusLabelRect = new Rectangle(pad, y, inner, D(16));

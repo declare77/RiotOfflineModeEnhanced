@@ -455,6 +455,15 @@ internal sealed class AgentSelectPanel : PagePanel
         var info = agentText;
         if (stateText.Length > 0) info += " · " + stateText;
         if (mate.Level > 0) info += $" · Lvl {mate.Level}";
+
+        // "Played with you before", from the matches the app has seen.
+        var yourId = _pregame?.Team.FirstOrDefault(t => t.IsYou)?.Puuid;
+        if (!mate.IsYou && yourId is not null)
+        {
+            var (with, withWins, against, _) = MatchData.History(yourId, mate.Puuid);
+            if (with > 0) info += $" · With you {with}× ({withWins}W {with - withWins}L)";
+            else if (against > 0) info += $" · Played against you {against}×";
+        }
         var infoSpace = Math.Max(0, rightEdge2 - D(12) - left);
         var infoColor = mate.SelectionState == "locked" ? Theme.Text : Theme.Muted;
         TextRenderer.DrawText(g, info, Theme.Small, new Rectangle(left, line2.Y, infoSpace, line2.Height), infoColor, Theme.LeftMiddle);
