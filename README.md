@@ -34,7 +34,7 @@ Most "appear offline" tools are all-or-nothing: either everybody sees you or nob
 | 🟢 **Live friends list** | Search your friends and see who's online, in game, away or on mobile at a glance. |
 | 🪟 **A real window** | Dark, compact and resizable. Open it from the tray when you need it and close it when you don't. |
 | 🛒 **Store tab** | Today's four skins and the Night Market (with discounts), with prices, rarity, reset timers and your VP, Radianite and Kingdom Credits. VALORANT only. |
-| 👥 **Agent select tab** | Your team's names, agents (hovering or locked), level, current rank and RR, this act's record and peak rank, while you pick. Players who hide their name stay hidden. VALORANT only. |
+| 👥 **Agent select tab** | Your team's names, agents (hovering or locked), level, current rank and RR, this act's record and peak rank, while you pick. Hidden names stay hidden (their stats still show), and hidden ranks stay hidden. VALORANT only. |
 | 💬 **Chat commands** | Message the helper friend `offline`, `online`, `mobile`, `status`, `visible` or `help` without leaving the client. |
 | ⚙️ **Settings file** | `RiotOfflineModeEnhanced-settings.json` sits next to the exe. Edit it and save, and changes apply live. |
 
@@ -82,7 +82,7 @@ It only changes chat presence. It never touches the game or Vanguard's territory
 <details>
 <summary><b>Why does someone show as "Hidden name" in agent select?</b></summary>
 
-They turned on VALORANT's option to hide their name. The app respects that: no name and no stats are shown for them, unless they're already on your friends list.
+They turned on VALORANT's option to hide their name. The app respects that and doesn't show their name, unless they're already on your friends list. Their rank and record still show, unless they also hid their act rank.
 </details>
 
 <details>

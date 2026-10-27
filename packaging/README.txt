@@ -46,8 +46,9 @@ USING IT
 
 - The Agent select tab (VALORANT) shows your team while you pick agents:
   names, agents, level, current rank and RR, this act's wins and losses and
-  peak rank. Players who hide their name stay hidden unless they're on your
-  friends list. Keep the tab open during agent select; it updates by itself.
+  peak rank. Hidden names stay hidden unless they're on your friends list
+  (their stats still show), and players who hide their act rank keep it
+  hidden.
 
 - A friend called "RiotOfflineModeEnhanced" appears at the top of your friends
   list. It's not a real player. Message it to control RiotOfflineModeEnhanced

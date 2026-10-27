@@ -168,7 +168,8 @@ internal sealed class AgentSelectPanel : PagePanel
         _loadingRanks = true;
         try
         {
-            foreach (var mate in pregame.Team.Where(t => !t.Hidden).ToList())
+            // Hidden-name players get stats too; only their name stays hidden.
+            foreach (var mate in pregame.Team.ToList())
             {
                 if (_pregame?.MatchId != pregame.MatchId) return; // a new match started
                 if (_ranks.ContainsKey(mate.Puuid) || _rankFailed.Contains(mate.Puuid)) continue;
@@ -258,7 +259,7 @@ internal sealed class AgentSelectPanel : PagePanel
         }
 
         y += D(4);
-        TextRenderer.DrawText(g, "Players who hide their name stay hidden unless they're on your friends list.", Theme.Small,
+        TextRenderer.DrawText(g, "Hidden names stay hidden unless they're on your friends list. Hidden ranks stay hidden.", Theme.Small,
             new Rectangle(0, y, width, D(32)), Theme.Faint,
             TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
         return y + D(36);
@@ -307,11 +308,12 @@ internal sealed class AgentSelectPanel : PagePanel
         Color rankColor = Theme.Text;
         Image? rankImage = null;
 
-        if (mate.Hidden)
+        if (rank is { RankHidden: true } && !mate.IsYou)
         {
-            rankText = "—";
-            recordText = "Stats hidden";
-            rankColor = Theme.Faint;
+            // They chose to hide their rank, so it stays hidden.
+            rankText = "Rank hidden";
+            recordText = "";
+            rankColor = Theme.Muted;
         }
         else if (rank is null)
         {

@@ -20,7 +20,7 @@ Changes from upstream Deceive:
   the Riot Client's local session (`ValorantApi.cs`). Names, rarity and pictures come from valorant-api.com
   (`ValorantContent.cs`), cached in `%APPDATA%\Deceive\valorant-content`.
 - Agent select tab (`AgentSelectPanel.cs`): your team's names, agents, level, rank, act record and peak rank
-  during agent select. Players with a hidden name stay hidden unless they're on your friends list. Requests
+  during agent select. Hidden names stay hidden unless they're on your friends list (their stats still show); hidden act ranks stay hidden. Requests
   are only made while the tab is open and the window isn't minimized.
 - Thread-safe writes to the proxied chat streams.
 - The upstream update check is disabled, and error messages no longer send users to Deceive's issue tracker.

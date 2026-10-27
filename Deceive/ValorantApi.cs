@@ -705,6 +705,7 @@ internal static class ValorantApi
         public int Games;
         public int PeakTier;
         public string PeakActId = "";
+        public bool RankHidden;     // the player turned on "hide my act rank"
     }
 
     private static readonly Dictionary<string, (RankInfo info, DateTime at)> RankCache = new(StringComparer.OrdinalIgnoreCase);
@@ -730,7 +731,7 @@ internal static class ValorantApi
 
     internal static RankInfo ParseRank(JsonNode? json, ValorantContent.Catalog catalog)
     {
-        var info = new RankInfo();
+        var info = new RankInfo { RankHidden = json.Bool("IsActRankBadgeHidden") };
         var seasons = json?["QueueSkills"]?["competitive"].Obj("SeasonalInfoBySeasonID") ?? new JsonObject();
 
         var current = catalog.CurrentActId();
