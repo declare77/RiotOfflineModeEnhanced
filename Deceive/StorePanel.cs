@@ -276,7 +276,7 @@ internal sealed class StorePanel : PagePanel
         var box = new Rectangle(0, y, width, D(height));
         Theme.FillRound(g, Theme.Surface, new RectangleF(box.X + 0.5f, box.Y + 0.5f, box.Width - 1, box.Height - 1), D(10));
         TextRenderer.DrawText(g, text, Theme.Body, Rectangle.Inflate(box, -D(16), 0), Theme.Muted,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsTranslateTransform | TextFormatFlags.PreserveGraphicsClipping);
         return box.Bottom;
     }
 
@@ -556,7 +556,7 @@ internal sealed class StorePanel : PagePanel
         y += D(8);
         TextRenderer.DrawText(g, "The app checks your store once a day while you have skins here, and notifies you when one shows up.",
             Theme.Small, new Rectangle(0, y, width, D(34)), Theme.Faint,
-            TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
+            TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsTranslateTransform | TextFormatFlags.PreserveGraphicsClipping | TextFormatFlags.NoPadding);
         return y + D(40);
     }
 

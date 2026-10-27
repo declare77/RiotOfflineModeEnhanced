@@ -485,7 +485,7 @@ internal sealed class CareerPanel : PagePanel
             TextRenderer.DrawText(g, "THIS SESSION", Theme.Section, new Rectangle(rect.X + pad, rect.Y + D(14), rect.Width - pad * 2, D(16)), Theme.Faint, Theme.LeftMiddle);
             TextRenderer.DrawText(g, _loadingMatches ? "Loading…" : "No games in the last 12 hours. Your next game starts a new session.", Theme.Small,
                 new Rectangle(rect.X + pad, rect.Y + D(40), rect.Width - pad * 2, D(36)), Theme.Muted,
-                TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+                TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsTranslateTransform | TextFormatFlags.PreserveGraphicsClipping);
             return rect.Bottom;
         }
 
@@ -598,7 +598,7 @@ internal sealed class CareerPanel : PagePanel
 
         TextRenderer.DrawText(g, "Click a match for the scoreboard. Players are only named if they're you, your party, your friends, or showed their name in agent select.",
             Theme.Small, new Rectangle(0, y + D(4), width, D(34)), Theme.Faint,
-            TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
+            TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsTranslateTransform | TextFormatFlags.PreserveGraphicsClipping | TextFormatFlags.NoPadding);
         return y + D(44);
     }
 

@@ -456,7 +456,7 @@ internal sealed class MatchPanel : PagePanel
         if (parties)
             text += " A colored bar marks players in the same party; the app can only see parties of you and your friends.";
         TextRenderer.DrawText(g, text, Theme.Small, new Rectangle(0, y, width, D(48)), Theme.Faint,
-            TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
+            TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsTranslateTransform | TextFormatFlags.PreserveGraphicsClipping | TextFormatFlags.NoPadding);
         return y + D(52);
     }
 

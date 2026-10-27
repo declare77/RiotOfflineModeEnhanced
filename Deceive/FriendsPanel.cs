@@ -305,7 +305,7 @@ internal sealed class FriendsPanel : PagePanel
         y += D(10);
         TextRenderer.DrawText(g, "Activity comes from your friends' VALORANT status, which Riot chat already sends you. Some details, like the score, are only there for some modes.",
             Theme.Small, new Rectangle(0, y, width, D(34)), Theme.Faint,
-            TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
+            TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsTranslateTransform | TextFormatFlags.PreserveGraphicsClipping | TextFormatFlags.NoPadding);
         return y + D(40);
     }
 

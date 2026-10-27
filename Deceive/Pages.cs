@@ -43,7 +43,7 @@ internal static class Draw
         text.Length == 0 ? 0 : TextRenderer.MeasureText(text, font, Size.Empty, Theme.Measure).Width;
 
     public static void Text(Graphics g, string text, Font font, Rectangle rect, Color color, TextFormatFlags flags) =>
-        TextRenderer.DrawText(g, text, font, rect, color, flags);
+        TextRenderer.DrawText(g, text, font, rect, color, flags | TextFormatFlags.PreserveGraphicsTranslateTransform | TextFormatFlags.PreserveGraphicsClipping);
 
     /// <summary>A soft rounded button drawn in place; returns its bounds for hit-testing.</summary>
     public static void Button(Graphics g, Rectangle rect, string text, bool hover, bool enabled, float s)
@@ -279,7 +279,7 @@ internal abstract class PagePanel : Control
         TextRenderer.DrawText(g, title, Theme.BodyBold, rect, Theme.Text, Theme.CenterMiddle);
         var detailRect = new Rectangle(D(24), rect.Bottom + D(4), Math.Max(0, width - D(48)), D(40));
         TextRenderer.DrawText(g, detail, Theme.Small, detailRect, Theme.Muted,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsTranslateTransform | TextFormatFlags.PreserveGraphicsClipping | TextFormatFlags.NoPadding);
         var bottom = detailRect.Bottom;
         if (button is not null)
         {
