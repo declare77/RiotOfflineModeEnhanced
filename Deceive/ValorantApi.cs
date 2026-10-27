@@ -446,7 +446,25 @@ internal static class ValorantApi
         public int Cost;
         public int BaseCost;      // night market only
         public int DiscountPercent; // night market only
+        public string ItemTypeId = "";
     }
+
+    internal sealed class BundleOffer
+    {
+        public string BundleId = "";   // valorant-api.com bundle ID (Riot's DataAssetID)
+        public int Cost;               // what you'd pay for the whole bundle, in VP
+        public int BaseCost;           // the items' full price added up
+        public DateTime EndsUtc;
+        public int ItemCount;
+        public List<string> ItemIds = new();
+    }
+
+    internal const string SkinItemType = "e7c63390-eda7-46e0-bb7a-a6abdacd2433";
+    internal const string BuddyItemType = "dd3bf334-87f3-40bd-b043-682a57a8dc3a";
+    internal const string SprayItemType = "d5f120f8-ff8c-4aac-92ea-f2b5acbe9475";
+    internal const string CardItemType = "3f296c07-64c3-494c-923b-fe692a4fa1bd";
+    internal const string TitleItemType = "de7caa6b-adf7-4588-bbd1-143831e786c6";
+    internal const string FlexItemType = "03a572de-4234-31ed-d344-ababa488f981";
 
     internal sealed class Store
     {
@@ -457,12 +475,17 @@ internal static class ValorantApi
         public int? Vp;
         public int? Radianite;
         public int? KingdomCredits;
+        public string Puuid = "";
+        public List<BundleOffer> Bundles = new();
+        public List<StoreOffer> Accessories = new();
+        public DateTime AccessoriesEndsUtc;
     }
 
-    private static int Price(JsonNode? cost)
+    /// <summary>The price in the given currency, or the only price listed.</summary>
+    private static int Price(JsonNode? cost, string currency = VpCurrency)
     {
         if (cost is not JsonObject obj || obj.Count == 0) return 0;
-        if (obj.TryGetPropertyValue(VpCurrency, out var vp)) return (int)Json.ToLong(vp);
+        if (obj.TryGetPropertyValue(currency, out var value)) return (int)Json.ToLong(value);
         return obj.Count == 1 ? (int)Json.ToLong(obj.First().Value) : 0;
     }
 
@@ -477,11 +500,14 @@ internal static class ValorantApi
         return offer.Str("OfferID");
     }
 
-    internal static async Task<Store> GetStoreAsync()
+    internal static async Task<Store> GetStoreAsync(bool includeWallet = true)
     {
         var json = await SendAsync(HttpMethod.Post, s => $"{s.Pd}/store/v3/storefront/{s.Puuid}", "{}").ConfigureAwait(false)
                    ?? throw new ValorantApiException("Riot didn't return your store. Try again in a moment.");
         var store = ParseStore(json, DateTime.UtcNow);
+        store.Puuid = (await GetSessionAsync().ConfigureAwait(false)).Puuid;
+        if (!includeWallet)
+            return store;
 
         // The wallet is a nice extra; the store still shows if it fails.
         try
@@ -543,6 +569,46 @@ internal static class ValorantApi
                 store.NightMarket = null;
         }
 
+        // Featured bundles
+        var featured = json["FeaturedBundle"];
+        var bundles = featured.Arr("Bundles");
+        if (bundles.Count == 0 && featured?["Bundle"] is JsonObject single)
+            bundles = new JsonArray(JsonNode.Parse(single.ToJsonString()));
+        foreach (var b in bundles)
+        {
+            var items = b.Arr("Items");
+            var baseSum = items.Sum(i => (long)i.Num("BasePrice"));
+            var discountedSum = items.Sum(i => (long)i.Num("DiscountedPrice"));
+            var total = Price(b?["TotalDiscountedCost"]);
+            if (total == 0) total = Price(b?["TotalBaseCost"]);
+            if (total == 0) total = (int)(discountedSum > 0 ? discountedSum : baseSum);
+            var ends = b.Num("DurationRemainingInSeconds", featured.Num("BundleRemainingDurationInSeconds"));
+            store.Bundles.Add(new BundleOffer
+            {
+                BundleId = b.Str("DataAssetID"),
+                Cost = total,
+                BaseCost = (int)baseSum,
+                EndsUtc = now.AddSeconds(ends),
+                ItemCount = items.Count,
+                ItemIds = items.Select(i => i?["Item"].Str("ItemID") ?? "").Where(id => id.Length > 0).ToList()
+            });
+        }
+
+        // Kingdom Credits (accessory) store
+        var accessory = json["AccessoryStore"];
+        foreach (var entry in accessory.Arr("AccessoryStoreOffers"))
+        {
+            var offer = entry?["Offer"];
+            var reward = offer.Arr("Rewards").FirstOrDefault();
+            store.Accessories.Add(new StoreOffer
+            {
+                ItemId = reward.Str("ItemID") is { Length: > 0 } id ? id : offer.Str("OfferID"),
+                ItemTypeId = reward.Str("ItemTypeID"),
+                Cost = Price(offer?["Cost"], KingdomCreditsCurrency)
+            });
+        }
+
+        store.AccessoriesEndsUtc = now.AddSeconds(accessory.Num("AccessoryStoreRemainingDurationInSeconds"));
         return store;
     }
 

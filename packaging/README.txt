@@ -42,7 +42,13 @@ USING IT
       offline or on mobile
 
 - The Store tab (VALORANT) shows today's four skins and the Night Market
-  when it's open, with prices, discounts, reset timers and your wallet.
+  when it's open, featured bundles, the Kingdom Credits store and your
+  wallet. Star skins to add them to your wishlist: on days a wishlist skin
+  is in your store, you get a Windows notification. History lists every
+  daily store the app has seen.
+
+- When agent select starts, the window's taskbar button flashes and a
+  chime plays (turn either off at the top of the Agent select tab).
 
 - The Agent select tab (VALORANT) shows your team while you pick agents:
   names, agents, level, current rank and RR, this act's wins and losses and

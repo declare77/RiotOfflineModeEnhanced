@@ -39,6 +39,10 @@ internal class MainController : ApplicationContext, IAppHost
         _ui = new Control();
         _ = _ui.Handle;
 
+        Alerts.Attach(this);
+        StoreWatcher.Start(this);
+        TrayIcon.BalloonTipClicked += (_, _) => ShowWindow();
+
         AppSettings.Initialize();
         AppSettings.Reloaded += async (_, _) => await OnSettingsReloadedAsync();
 
@@ -48,6 +52,16 @@ internal class MainController : ApplicationContext, IAppHost
 
     private readonly Control _ui;
     private MainWindow? _window;
+
+    /// <summary>The app window, if it has been opened.</summary>
+    internal MainWindow? Window => _window;
+
+    /// <summary>A small Windows notification from the tray icon. Clicking it opens the window.</summary>
+    internal void ShowTrayNotice(string title, string text) => RunOnUi(() =>
+    {
+        try { TrayIcon.ShowBalloonTip(5000, title, text, ToolTipIcon.Info); }
+        catch (Exception e) { Trace.WriteLine("Tray notice failed: " + e.Message); }
+    });
 
     /// <summary>Raised on the UI thread whenever status, enabled state or tray changes.</summary>
     public event EventHandler? StateChanged;

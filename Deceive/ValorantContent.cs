@@ -25,10 +25,21 @@ internal static class ValorantContent
 
     internal sealed class Skin
     {
+        public string Id = "";         // the skin's own ID (what the wishlist stores)
+        public string FirstLevelId = "";
         public string Name = "";
+        public string Weapon = "";
         public string Icon = "";
         public Color Rarity = Color.Empty;
         public string RarityIcon = "";
+    }
+
+    /// <summary>A buddy, spray, player card, title, flex or bundle.</summary>
+    internal sealed class Item
+    {
+        public string Name = "";
+        public string Icon = "";
+        public string Kind = ""; // "Buddy", "Spray", "Card", "Title", "Flex", "Bundle"
     }
 
     internal sealed class Agent
@@ -57,7 +68,13 @@ internal static class ValorantContent
 
     internal sealed class Catalog
     {
+        /// <summary>By skin, level and chroma ID; all of a skin's IDs point at the same object.</summary>
         public readonly Dictionary<string, Skin> Skins = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Each skin once (for search), excluding standard and random-favorite skins.</summary>
+        public readonly List<Skin> SkinList = new();
+        public readonly Dictionary<string, Item> Items = new(StringComparer.OrdinalIgnoreCase);
+        public readonly Dictionary<string, string> Weapons = new(StringComparer.OrdinalIgnoreCase); // id -> name
+        public readonly Dictionary<string, Item> Bundles = new(StringComparer.OrdinalIgnoreCase);
         public readonly Dictionary<string, Agent> Agents = new(StringComparer.OrdinalIgnoreCase);
         public readonly Dictionary<string, string> Maps = new(StringComparer.OrdinalIgnoreCase); // mapUrl -> name
         public readonly Dictionary<int, Tier> Tiers = new();
@@ -131,7 +148,6 @@ internal static class ValorantContent
     {
         var catalog = new Catalog();
 
-        var skins = await FetchAsync("skins", "https://valorant-api.com/v1/weapons/skins?language=en-US", forceRefresh).ConfigureAwait(false);
         var tiers = await FetchAsync("contenttiers", "https://valorant-api.com/v1/contenttiers?language=en-US", forceRefresh).ConfigureAwait(false);
         var agents = await FetchAsync("agents", "https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=en-US", forceRefresh).ConfigureAwait(false);
         var maps = await FetchAsync("maps", "https://valorant-api.com/v1/maps?language=en-US", forceRefresh).ConfigureAwait(false);
@@ -142,26 +158,18 @@ internal static class ValorantContent
         foreach (var t in tiers.Arr("data"))
             rarity[t.Str("uuid")] = (ParseRgba(t.Str("highlightColor")), t.Str("displayIcon"));
 
-        foreach (var skin in skins.Arr("data"))
+        // Weapon names, from the full weapons list (skins only know their weapon's ID).
+        var weapons = await FetchAsync("weapons", "https://valorant-api.com/v1/weapons?language=en-US", forceRefresh).ConfigureAwait(false);
+        foreach (var weapon in weapons.Arr("data"))
         {
-            var name = skin.Str("displayName");
-            var tier = rarity.TryGetValue(skin.Str("contentTierUuid"), out var r) ? r : (Color.Empty, "");
-            var skinIcon = skin.Str("displayIcon");
-            var chromaIcon = skin.Arr("chromas").Select(c => c.Str("fullRender")).FirstOrDefault(s => s.Length > 0) ?? "";
-
-            foreach (var level in skin.Arr("levels"))
-            {
-                var id = level.Str("uuid");
-                if (id.Length == 0) continue;
-                var icon = FirstNonEmpty(level.Str("displayIcon"), skinIcon, chromaIcon);
-                catalog.Skins[id] = new Skin { Name = name, Icon = icon, Rarity = tier.Item1, RarityIcon = tier.Item2 };
-            }
-
-            // Some offers point at the skin itself rather than its first level.
-            var skinId = skin.Str("uuid");
-            if (skinId.Length > 0 && !catalog.Skins.ContainsKey(skinId))
-                catalog.Skins[skinId] = new Skin { Name = name, Icon = FirstNonEmpty(skinIcon, chromaIcon), Rarity = tier.Item1, RarityIcon = tier.Item2 };
+            var weaponName = weapon.Str("displayName");
+            if (weapon.Str("uuid") is { Length: > 0 } weaponId)
+                catalog.Weapons[weaponId] = weaponName;
+            foreach (var skin in weapon.Arr("skins"))
+                AddSkin(catalog, skin, weaponName, rarity);
         }
+
+        await AddItemsAsync(catalog, forceRefresh).ConfigureAwait(false);
 
         foreach (var a in agents.Arr("data"))
         {
@@ -212,6 +220,78 @@ internal static class ValorantContent
         }
 
         return catalog;
+    }
+
+    private static void AddSkin(Catalog catalog, JsonNode? skin, string weapon, Dictionary<string, (Color color, string icon)> rarity)
+    {
+        var skinId = skin.Str("uuid");
+        if (skinId.Length == 0) return;
+        var tier = rarity.TryGetValue(skin.Str("contentTierUuid"), out var r) ? r : (Color.Empty, "");
+        var levels = skin.Arr("levels");
+        var firstLevel = levels.FirstOrDefault();
+        var chromaIcon = skin.Arr("chromas").Select(c => c.Str("fullRender")).FirstOrDefault(s => s.Length > 0) ?? "";
+        var item = new Skin
+        {
+            Id = skinId,
+            FirstLevelId = firstLevel.Str("uuid"),
+            Name = skin.Str("displayName"),
+            Weapon = weapon,
+            Icon = FirstNonEmpty(firstLevel.Str("displayIcon"), skin.Str("displayIcon"), chromaIcon),
+            Rarity = tier.Item1,
+            RarityIcon = tier.Item2
+        };
+
+        catalog.Skins[skinId] = item;
+        foreach (var level in levels)
+            if (level.Str("uuid") is { Length: > 0 } id) catalog.Skins[id] = item;
+        foreach (var chroma in skin.Arr("chromas"))
+            if (chroma.Str("uuid") is { Length: > 0 } id && !catalog.Skins.ContainsKey(id)) catalog.Skins[id] = item;
+
+        // Standard and "Random Favorite" skins have no rarity; leave them out of search.
+        if (skin.Str("contentTierUuid").Length > 0)
+            catalog.SkinList.Add(item);
+    }
+
+    private static async Task AddItemsAsync(Catalog catalog, bool forceRefresh)
+    {
+        var buddies = await FetchAsync("buddies", "https://valorant-api.com/v1/buddies?language=en-US", forceRefresh).ConfigureAwait(false);
+        foreach (var b in buddies.Arr("data"))
+        {
+            var item = new Item { Name = b.Str("displayName"), Icon = b.Str("displayIcon"), Kind = "Buddy" };
+            catalog.Items[b.Str("uuid")] = item;
+            foreach (var level in b.Arr("levels"))
+                if (level.Str("uuid") is { Length: > 0 } id) catalog.Items[id] = item;
+        }
+
+        var sprays = await FetchAsync("sprays", "https://valorant-api.com/v1/sprays?language=en-US", forceRefresh).ConfigureAwait(false);
+        foreach (var sp in sprays.Arr("data"))
+        {
+            var item = new Item { Name = sp.Str("displayName"), Icon = FirstNonEmpty(sp.Str("fullTransparentIcon"), sp.Str("displayIcon")), Kind = "Spray" };
+            catalog.Items[sp.Str("uuid")] = item;
+            foreach (var level in sp.Arr("levels"))
+                if (level.Str("uuid") is { Length: > 0 } id) catalog.Items[id] = item;
+        }
+
+        var cards = await FetchAsync("playercards", "https://valorant-api.com/v1/playercards?language=en-US", forceRefresh).ConfigureAwait(false);
+        foreach (var c in cards.Arr("data"))
+            catalog.Items[c.Str("uuid")] = new Item { Name = c.Str("displayName"), Icon = FirstNonEmpty(c.Str("smallArt"), c.Str("displayIcon")), Kind = "Card" };
+
+        var titles = await FetchAsync("playertitles", "https://valorant-api.com/v1/playertitles?language=en-US", forceRefresh).ConfigureAwait(false);
+        foreach (var t in titles.Arr("data"))
+            catalog.Items[t.Str("uuid")] = new Item { Name = t.Str("titleText") is { Length: > 0 } text ? text : t.Str("displayName"), Kind = "Title" };
+
+        var flex = await FetchAsync("flex", "https://valorant-api.com/v1/flex?language=en-US", forceRefresh).ConfigureAwait(false);
+        foreach (var f in flex.Arr("data"))
+            catalog.Items[f.Str("uuid")] = new Item { Name = f.Str("displayName"), Icon = f.Str("displayIcon"), Kind = "Flex" };
+
+        var bundles = await FetchAsync("bundles", "https://valorant-api.com/v1/bundles?language=en-US", forceRefresh).ConfigureAwait(false);
+        foreach (var b in bundles.Arr("data"))
+            catalog.Bundles[b.Str("uuid")] = new Item
+            {
+                Name = b.Str("displayName"),
+                Icon = FirstNonEmpty(b.Str("displayIcon"), b.Str("displayIcon2")),
+                Kind = "Bundle"
+            };
     }
 
     private static async Task<JsonNode?> FetchAsync(string name, string url, bool forceRefresh)

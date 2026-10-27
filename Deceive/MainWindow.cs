@@ -949,7 +949,7 @@ internal sealed class SearchBox : DrawnControl
     private readonly TextBox _input;
     private bool _focused;
 
-    public SearchBox(float scale) : base(scale)
+    public SearchBox(float scale, string placeholder = "Search friends") : base(scale)
     {
         Cursor = Cursors.IBeam;
         _input = new TextBox
@@ -962,7 +962,7 @@ internal sealed class SearchBox : DrawnControl
         _input.TextChanged += (_, _) => OnTextChanged(EventArgs.Empty);
         _input.GotFocus += (_, _) => { _focused = true; Invalidate(); };
         _input.LostFocus += (_, _) => { _focused = false; Invalidate(); };
-        _input.HandleCreated += (_, _) => Native.SetCueBanner(_input.Handle, "Search friends");
+        _input.HandleCreated += (_, _) => Native.SetCueBanner(_input.Handle, placeholder);
         Controls.Add(_input);
     }
 
@@ -1274,6 +1274,27 @@ internal static class Native
     {
         try { SetWindowTheme(hwnd, "DarkMode_Explorer", null); }
         catch { /* not supported */ }
+    }
+
+    /// <summary>Flashes the taskbar button until the window is focused. Never steals focus.</summary>
+    public static void FlashTaskbar(IntPtr hwnd)
+    {
+        try
+        {
+            var info = new NativeFlash.FLASHWINFO
+            {
+                cbSize = (uint)Marshal.SizeOf(typeof(NativeFlash.FLASHWINFO)),
+                hwnd = hwnd,
+                dwFlags = 0x2 | 0xC, // FLASHW_TRAY | FLASHW_TIMERNOFG
+                uCount = uint.MaxValue,
+                dwTimeout = 0
+            };
+            NativeFlash.FlashWindowEx(ref info);
+        }
+        catch
+        {
+            // Not supported.
+        }
     }
 
     public static void SetCueBanner(IntPtr hwnd, string text)

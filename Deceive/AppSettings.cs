@@ -27,6 +27,9 @@ internal class AppSettings
     [JsonPropertyName("accountLevel")] public int AccountLevel { get; set; } = 999;
     [JsonPropertyName("visibleTo")] public List<string> VisibleTo { get; set; } = new();
     [JsonPropertyName("keepOnTop")] public bool KeepOnTop { get; set; } = false;
+    [JsonPropertyName("agentSelectAlert")] public bool AgentSelectAlert { get; set; } = true;
+    [JsonPropertyName("agentSelectSound")] public bool AgentSelectSound { get; set; } = true;
+    [JsonPropertyName("wishlist")] public List<string> Wishlist { get; set; } = new();
 
     // ---------------------------------------------------------------------
 
@@ -149,7 +152,10 @@ internal class AppSettings
         PlayerTitleId = PlayerTitleId,
         AccountLevel = AccountLevel,
         VisibleTo = VisibleTo.ToList(),
-        KeepOnTop = KeepOnTop
+        KeepOnTop = KeepOnTop,
+        AgentSelectAlert = AgentSelectAlert,
+        AgentSelectSound = AgentSelectSound,
+        Wishlist = Wishlist.ToList()
     };
 
     /// <summary>Makes these the current settings and writes them to the file (used by the app window).</summary>
@@ -185,6 +191,12 @@ internal class AppSettings
             .Select(v => v.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+        Wishlist = (Wishlist ?? new List<string>())
+            .Where(v => Guid.TryParse(v, out _))
+            .Select(v => v.Trim().ToLowerInvariant())
+            .Distinct()
+            .ToList();
     }
 
     internal static void OpenInEditor()
@@ -213,6 +225,10 @@ internal class AppSettings
 
     private static string ToFileContents(AppSettings s)
     {
+        var wishlist = s.Wishlist.Count == 0
+            ? "[\n  ]"
+            : "[\n" + string.Join(",\n", s.Wishlist.Select(v => "    " + J(v))) + "\n  ]";
+
         var visible = s.VisibleTo.Count == 0
             ? "[\n  ]"
             : "[\n" + string.Join(",\n", s.VisibleTo.Select(v => "    " + J(v))) + "\n  ]";
@@ -237,7 +253,14 @@ internal class AppSettings
             $"  \"visibleTo\": {visible},\n" +
             "\n" +
             $"  // Keep the {AppInfo.Name} window above other windows.\n" +
-            $"  \"keepOnTop\": {(s.KeepOnTop ? "true" : "false")}\n" +
+            $"  \"keepOnTop\": {(s.KeepOnTop ? "true" : "false")},\n" +
+            "\n" +
+            "  // VALORANT: flash the window and/or play a sound when agent select starts.\n" +
+            $"  \"agentSelectAlert\": {(s.AgentSelectAlert ? "true" : "false")},\n" +
+            $"  \"agentSelectSound\": {(s.AgentSelectSound ? "true" : "false")},\n" +
+            "\n" +
+            "  // VALORANT skins you want (skin IDs). Easiest to change from the Store tab > Wishlist.\n" +
+            $"  \"wishlist\": {wishlist}\n" +
             "}\n";
     }
 }

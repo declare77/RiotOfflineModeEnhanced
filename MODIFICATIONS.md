@@ -19,6 +19,11 @@ Changes from upstream Deceive:
 - Store tab (`StorePanel.cs`): daily store, Night Market and wallet, read from Riot's store service with
   the Riot Client's local session (`ValorantApi.cs`). Names, rarity and pictures come from valorant-api.com
   (`ValorantContent.cs`), cached in `%APPDATA%\Deceive\valorant-content`.
+- Store tab sub-pages: featured bundles and the Kingdom Credits store, a wishlist with Windows notifications
+  (`StoreWatch.cs` checks once per daily reset while the wishlist isn't empty), and a per-account store
+  history in `%APPDATA%\Deceive\store-history-*.json`.
+- Agent select alert (`Alerts.cs`, `ValorantPresence.cs`): reads your own VALORANT state from the presence
+  the Riot Client already sends through the relay, then flashes the taskbar button and plays a chime.
 - Agent select tab (`AgentSelectPanel.cs`): your team's names, agents, level, rank, act record and peak rank
   during agent select. Hidden names stay hidden unless they're on your friends list (their stats still show); hidden act ranks stay hidden. Requests
   are only made while the tab is open and the window isn't minimized.

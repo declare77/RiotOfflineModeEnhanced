@@ -33,7 +33,10 @@ Most "appear offline" tools are all-or-nothing: either everybody sees you or nob
 | ✅ **Who-can-see-me list** | Tick friends in the window. They see your real status, and everyone else sees you offline or on mobile. Changes apply instantly. |
 | 🟢 **Live friends list** | Search your friends and see who's online, in game, away or on mobile at a glance. |
 | 🪟 **A real window** | Dark, compact and resizable. Open it from the tray when you need it and close it when you don't. |
-| 🛒 **Store tab** | Today's four skins and the Night Market (with discounts), with prices, rarity, reset timers and your VP, Radianite and Kingdom Credits. VALORANT only. |
+| 🛒 **Store tab** | Today's four skins and the Night Market (with discounts), featured bundles, the Kingdom Credits store and your wallet. VALORANT only. |
+| ⭐ **Wishlist** | Star skins you want; a Windows notification tells you on days one is in your store. The app checks once per daily reset. |
+| 🗓️ **Store history** | Every daily store the app has seen, so you can see how often skins come up. |
+| 🔔 **Agent select alert** | Flashes the taskbar button and plays a chime when agent select starts, so you can tab out while you queue. Read from your own chat status, no extra requests. |
 | 👥 **Agent select tab** | Your team's names, agents (hovering or locked), level, current rank and RR, this act's record and peak rank, while you pick. Hidden names stay hidden (their stats still show), and hidden ranks stay hidden. VALORANT only. |
 | 💬 **Chat commands** | Message the helper friend `offline`, `online`, `mobile`, `status`, `visible` or `help` without leaving the client. |
 | ⚙️ **Settings file** | `RiotOfflineModeEnhanced-settings.json` sits next to the exe. Edit it and save, and changes apply live. |

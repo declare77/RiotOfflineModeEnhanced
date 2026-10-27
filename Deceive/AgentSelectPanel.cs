@@ -34,6 +34,7 @@ internal sealed class AgentSelectPanel : PagePanel
     {
         _poll.Tick += async (_, _) => await PollAsync();
         ImageCache.Loaded += OnImageLoaded;
+        ValorantPresence.OwnStateChanged += OnOwnStateChanged;
         SetIdle("Waiting for agent select", "Your team shows up here as soon as agent select starts.");
     }
 
@@ -44,6 +45,14 @@ internal sealed class AgentSelectPanel : PagePanel
         _poll.Enabled = active;
         if (active)
             _ = PollAsync();
+    }
+
+    // Your presence says agent select started: check right away instead of at the next tick.
+    private void OnOwnStateChanged(object? sender, ValorantPresence presence)
+    {
+        if (IsDisposed || !IsHandleCreated || !_active) return;
+        try { BeginInvoke(new Action(() => _ = PollAsync())); }
+        catch (InvalidOperationException) { /* closing */ }
     }
 
     private void OnImageLoaded(object? sender, EventArgs e)
@@ -58,6 +67,7 @@ internal sealed class AgentSelectPanel : PagePanel
         if (disposing)
         {
             ImageCache.Loaded -= OnImageLoaded;
+            ValorantPresence.OwnStateChanged -= OnOwnStateChanged;
             _poll.Dispose();
         }
 
@@ -199,8 +209,47 @@ internal sealed class AgentSelectPanel : PagePanel
         }
     }
 
+    protected override int HeaderHeight => D(40);
+
+    protected override void PaintHeader(Graphics g, int width)
+    {
+        var settings = AppSettings.Current;
+        var x = 0;
+        x = PaintOption(g, x, "opt:alert", "Alert me when agent select starts", settings.AgentSelectAlert);
+        PaintOption(g, x + D(18), "opt:sound", "Play a sound", settings.AgentSelectSound);
+        using var pen = new Pen(Theme.Border);
+        g.DrawLine(pen, 0, D(39), width, D(39));
+    }
+
+    private int PaintOption(Graphics g, int x, string key, string text, bool on)
+    {
+        var box = D(16);
+        var textW = Draw.TextWidth(text, Theme.Small);
+        var rect = new Rectangle(x, D(4), box + D(8) + textW + D(4), D(24));
+        var hover = HoverKey == key;
+        FriendList.DrawCheckbox(g, new RectangleF(rect.X + 0.5f, rect.Y + (rect.Height - box) / 2f, box, box), on, hover, S);
+        TextRenderer.DrawText(g, text, Theme.Small, new Rectangle(rect.X + box + D(8), rect.Y, textW + D(4), rect.Height), hover ? Theme.Text : Theme.Muted, Theme.LeftMiddle);
+        Hit(rect, key);
+        return rect.Right;
+    }
+
     protected override void OnHitClicked(string key)
     {
+        if (key is "opt:alert" or "opt:sound")
+        {
+            var settings = AppSettings.Current.Clone();
+            if (key == "opt:alert") settings.AgentSelectAlert = !settings.AgentSelectAlert;
+            else
+            {
+                settings.AgentSelectSound = !settings.AgentSelectSound;
+                if (settings.AgentSelectSound) Alerts.PlayChime(); // a preview
+            }
+
+            AppSettings.Save(settings);
+            Invalidate();
+            return;
+        }
+
         if (key == "action")
         {
             _poll.Interval = 3000;
@@ -282,7 +331,7 @@ internal sealed class AgentSelectPanel : PagePanel
         {
             using var clip = Theme.Round(icon, D(8));
             var state = g.Save();
-            g.SetClip(clip);
+            g.SetClip(clip, System.Drawing.Drawing2D.CombineMode.Intersect);
             Draw.Fit(g, image, icon);
             g.Restore(state);
             if (mate.SelectionState != "locked")
