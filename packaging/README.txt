@@ -52,6 +52,9 @@ USING IT
   match history with scoreboards, and your win rate on each map and agent.
   Each match is downloaded once and then kept on your PC.
 
+- The Friends tab shows what your friends are doing in VALORANT (in a
+  match, in agent select, in the menus) and your current party's ranks.
+
 - When agent select starts, the window's taskbar button flashes and a
   chime plays (turn either off at the top of the Match tab).
 

@@ -28,6 +28,8 @@ Changes from upstream Deceive:
   scoreboards and party markers, map and agent breakdown. Matches are trimmed and cached in
   `%APPDATA%\Deceive\matches` so each is fetched once. Scoreboards only name you, your party, your friends and
   players whose names were visible in agent select.
+- Friends tab (`FriendsPanel.cs`): friends' VALORANT activity from the presence details the relay already
+  receives (`FriendDirectory.cs`), and your party with ranks.
 - Match tab (`MatchPanel.cs`): your team's names, agents, level, rank, act record and peak rank during agent
   select, then both teams with ranks and weapon skins once the match loads. Party markers come from your own
   and your friends' chat status. Hidden names stay hidden unless they're on your friends list (their stats still show); hidden act ranks stay hidden. Requests

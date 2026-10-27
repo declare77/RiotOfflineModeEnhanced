@@ -19,7 +19,8 @@ internal static class FriendDirectory
     private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, string>> Presence = new(StringComparer.OrdinalIgnoreCase);
 
     // jid -> what they're doing in VALORANT (from the presence's hidden details), and since when.
-    private static readonly ConcurrentDictionary<string, (ValorantPresence presence, DateTime stateSince)> Valorant = new(StringComparer.OrdinalIgnoreCase);
+    // stateSince is null until we've actually seen the state change (we don't know how long it was going before).
+    private static readonly ConcurrentDictionary<string, (ValorantPresence presence, DateTime? stateSince)> Valorant = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>A friend's VALORANT details (map, mode, score, party) if they're playing it.</summary>
     internal static ValorantPresence? GetValorant(string jid) =>
@@ -196,9 +197,9 @@ internal static class FriendDirectory
         var valorantChanged = false;
         if (body.IndexOf("<valorant>", StringComparison.Ordinal) >= 0 && ValorantPresence.FromStanza(body) is { } vp)
         {
-            var since = Valorant.TryGetValue(jid, out var old0) && old0.presence.SessionLoopState == vp.SessionLoopState
-                ? old0.stateSince
-                : DateTime.UtcNow;
+            DateTime? since = Valorant.TryGetValue(jid, out var old0)
+                ? old0.presence.SessionLoopState == vp.SessionLoopState ? old0.stateSince : DateTime.UtcNow
+                : null;
             valorantChanged = !Valorant.TryGetValue(jid, out var prev) || !SameValorant(prev.presence, vp);
             Valorant[jid] = (vp, since);
         }

@@ -40,6 +40,7 @@ Most "appear offline" tools are all-or-nothing: either everybody sees you or nob
 | 👥 **Match tab** | In agent select: your team's names, agents (hovering or locked), level, current rank and RR, this act's record and peak rank. Once the match loads: both teams with ranks and weapon skins, and party markers for you and your friends. Hidden names stay hidden (their stats still show), and hidden ranks stay hidden. VALORANT only. |
 | 📈 **Career tab** | Rank and RR with a progress bar and "wins to rank up", this session's record and RR, trends (ACS, K/D, headshot %, damage per round), match history with full scoreboards and party markers, and your win rate by map and agent. Matches are fetched once and kept on your PC. |
 | 🤝 **Played with before** | Agent select shows teammates you've played with or against, and how those games went. |
+| 🟣 **Friends tab** | What friends are doing in VALORANT right now: in a match (map, mode, score where Riot includes it), in agent select, or in the menus with their party size. Read from their chat status, no extra requests. Plus your current party with everyone's rank. |
 | 💬 **Chat commands** | Message the helper friend `offline`, `online`, `mobile`, `status`, `visible` or `help` without leaving the client. |
 | ⚙️ **Settings file** | `RiotOfflineModeEnhanced-settings.json` sits next to the exe. Edit it and save, and changes apply live. |
 

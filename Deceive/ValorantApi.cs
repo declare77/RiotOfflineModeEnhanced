@@ -638,6 +638,68 @@ internal static class ValorantApi
         public string Team = "";     // live match: "Blue"/"Red" (or the player's own ID in deathmatch)
         /// <summary>Live match: weapon ID -> the IDs in that weapon's loadout sockets (skin, level, chroma, buddy).</summary>
         public Dictionary<string, List<string>> Loadout = new(StringComparer.OrdinalIgnoreCase);
+        public bool IsOwner;         // party leader
+        public bool IsReady;
+    }
+
+    internal sealed class Party
+    {
+        public string Id = "";
+        public string Queue = "";
+        public string State = "";
+        public bool Open;
+        public List<Teammate> Members = new();
+    }
+
+    /// <summary>Your current party, with names (hidden names stay hidden unless friends).</summary>
+    internal static async Task<Party?> GetPartyAsync(Func<string, (string name, string tag)?> friendLookup)
+    {
+        var player = await SendAsync(HttpMethod.Get, s => $"{s.Glz}/parties/v1/players/{s.Puuid}").ConfigureAwait(false);
+        var id = player.Str("CurrentPartyID");
+        if (id.Length == 0) return null;
+        var json = await SendAsync(HttpMethod.Get, s => $"{s.Glz}/parties/v1/parties/{Uri.EscapeDataString(id)}").ConfigureAwait(false);
+        if (json is null) return null;
+        var party = ParseParty(json, await GetPuuidAsync().ConfigureAwait(false), friendLookup);
+        await FillNamesAsync(party.Members).ConfigureAwait(false);
+        return party;
+    }
+
+    internal static Party ParseParty(JsonNode json, string yourPuuid, Func<string, (string name, string tag)?> friendLookup)
+    {
+        var party = new Party
+        {
+            Id = json.Str("ID"),
+            Queue = json["MatchmakingData"].Str("QueueID"),
+            State = json.Str("State"),
+            Open = string.Equals(json.Str("Accessibility"), "OPEN", StringComparison.OrdinalIgnoreCase)
+        };
+        foreach (var m in json.Arr("Members"))
+        {
+            var puuid = m.Str("Subject");
+            if (puuid.Length == 0) continue;
+            var identity = m?["PlayerIdentity"];
+            var isYou = string.Equals(puuid, yourPuuid, StringComparison.OrdinalIgnoreCase);
+            var mate = new Teammate
+            {
+                Puuid = puuid,
+                IsYou = isYou,
+                IsOwner = m.Bool("IsOwner"),
+                IsReady = m.Bool("IsReady"),
+                PregameTier = (int)m.Num("CompetitiveTier"),
+                Level = identity.Bool("HideAccountLevel") && !isYou ? 0 : (int)identity.Num("AccountLevel"),
+                SelectionState = "locked"
+            };
+            if (identity.Bool("Incognito") && !isYou)
+            {
+                if (friendLookup(puuid) is { } friend) (mate.Name, mate.Tag) = friend;
+                else mate.Hidden = true;
+            }
+
+            party.Members.Add(mate);
+        }
+
+        party.Members = party.Members.OrderByDescending(t => t.IsYou).ThenByDescending(t => t.IsOwner).ToList();
+        return party;
     }
 
     internal sealed class LiveMatch
