@@ -110,7 +110,7 @@ internal static class Theme
     public const TextFormatFlags RightMiddle = TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix;
 }
 
-/// <summary>The main window: status, masking toggle and who-can-see-you list.</summary>
+/// <summary>The main window: status and who-can-see-you list, plus the Store and Agent select tabs.</summary>
 internal sealed class MainWindow : Form
 {
     private readonly IAppHost _host;
@@ -124,6 +124,12 @@ internal sealed class MainWindow : Form
     private readonly Label _empty;
     private readonly CheckLabel _keepOnTop;
     private readonly LinkText _settingsLink;
+    private readonly TabBar _tabs;
+    private readonly StorePanel _storePanel;
+    private readonly AgentSelectPanel _agentPanel;
+    private Control[] _statusControls = Array.Empty<Control>();
+
+    private const int StatusTab = 0, StoreTab = 1, AgentTab = 2;
 
     private readonly Timer _refreshTimer = new() { Interval = 350 };
     private readonly Timer _applyTimer = new() { Interval = 600 };
@@ -148,8 +154,11 @@ internal sealed class MainWindow : Form
         FormBorderStyle = FormBorderStyle.Sizable;
         MaximizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(D(400), D(660));
-        MinimumSize = new Size(D(360), D(520));
+        // Roomy enough for the store grid and five teammates, but never taller than the screen.
+        var work = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1920, 1040);
+        var chrome = SystemInformation.CaptionHeight + SystemInformation.FrameBorderSize.Height * 2 + D(16);
+        ClientSize = new Size(Math.Min(D(580), work.Width - D(40)), Math.Max(D(540), Math.Min(D(780), work.Height - chrome)));
+        MinimumSize = new Size(D(480), D(560));
         KeyPreview = true;
         DoubleBuffered = true;
         SetStyle(ControlStyles.ResizeRedraw, true);
@@ -190,7 +199,14 @@ internal sealed class MainWindow : Form
         _settingsLink = new LinkText(_s, "Edit settings file");
         _settingsLink.Click += (_, _) => AppSettings.OpenInEditor();
 
-        Controls.AddRange(new Control[] { _masking, _status, _search, _chips, _empty, _list, _keepOnTop, _settingsLink });
+        _tabs = new TabBar(_s, new[] { "Status", "Store", "Agent select" });
+        _tabs.SelectedChanged += (_, _) => OnTabChanged();
+
+        _storePanel = new StorePanel(_s) { Visible = false };
+        _agentPanel = new AgentSelectPanel(_s) { Visible = false };
+
+        _statusControls = new Control[] { _status, _search, _chips, _empty, _list };
+        Controls.AddRange(new Control[] { _masking, _tabs, _status, _search, _chips, _empty, _list, _storePanel, _agentPanel, _keepOnTop, _settingsLink });
         ResumeLayout(false);
 
         _refreshTimer.Tick += (_, _) =>
@@ -264,6 +280,43 @@ internal sealed class MainWindow : Form
     {
         base.OnResize(e);
         LayoutAll();
+        UpdatePageActivity();
+    }
+
+    protected override void OnMouseWheel(MouseEventArgs e)
+    {
+        base.OnMouseWheel(e);
+        // Scroll the open page even when the wheel event lands on the window itself.
+        PagePanel? page = _tabs.SelectedIndex == StoreTab ? _storePanel : _tabs.SelectedIndex == AgentTab ? _agentPanel : null;
+        page?.ScrollBy(-e.Delta * D(60) / 120);
+    }
+
+    protected override void OnVisibleChanged(EventArgs e)
+    {
+        base.OnVisibleChanged(e);
+        UpdatePageActivity();
+    }
+
+    private void OnTabChanged()
+    {
+        var tab = _tabs.SelectedIndex;
+        foreach (var c in _statusControls)
+            c.Visible = tab == StatusTab && (c != _empty || _emptyWanted);
+        _storePanel.Visible = tab == StoreTab;
+        _agentPanel.Visible = tab == AgentTab;
+        _tabs.Invalidate();
+        if (tab == StatusTab && _empty.Visible) _empty.BringToFront();
+        UpdatePageActivity();
+        Invalidate();
+    }
+
+    /// <summary>The Store and Agent select tabs only talk to Riot while you can see them.</summary>
+    private void UpdatePageActivity()
+    {
+        if (_tabs is null || _storePanel is null || _agentPanel is null) return;
+        var showing = Visible && WindowState != FormWindowState.Minimized;
+        _storePanel.SetActive(showing && _tabs.SelectedIndex == StoreTab);
+        _agentPanel.SetActive(showing && _tabs.SelectedIndex == AgentTab);
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
@@ -287,7 +340,7 @@ internal sealed class MainWindow : Form
             return true;
         }
 
-        if (keyData == (Keys.Control | Keys.F))
+        if (keyData == (Keys.Control | Keys.F) && _tabs.SelectedIndex == StatusTab)
         {
             _search.FocusInput();
             return true;
@@ -339,6 +392,7 @@ internal sealed class MainWindow : Form
         _keepOnTop.Checked = TopMost;
     }
 
+    private bool _emptyWanted;
     private int _selectedCount;
     private int _visibleCount; // ticked friends that are actually on the friends list
 
@@ -406,7 +460,8 @@ internal sealed class MainWindow : Form
                     : "No friends to show.";
         }
 
-        _empty.Visible = list.Count == 0;
+        _emptyWanted = list.Count == 0;
+        _empty.Visible = _emptyWanted && _tabs.SelectedIndex == StatusTab;
         if (_empty.Visible) _empty.BringToFront();
         Invalidate(Rectangle.Union(_subtitleRect, _visibleCountRect));
         Invalidate(_helpRect);
@@ -464,7 +519,7 @@ internal sealed class MainWindow : Form
 
     private void LayoutAll()
     {
-        if (_list is null) return;
+        if (_list is null || _tabs is null || _agentPanel is null) return;
         var w = ClientSize.Width;
         var h = ClientSize.Height;
         var pad = D(20);
@@ -477,7 +532,15 @@ internal sealed class MainWindow : Form
         _masking.Bounds = new Rectangle(w - pad - switchSize.Width, D(21), switchSize.Width, switchSize.Height);
         _maskingLabelRect = new Rectangle(_masking.Left - D(70), D(21), D(62), switchSize.Height);
 
-        var y = D(86);
+        _tabs.Bounds = new Rectangle(pad, D(80), inner, D(34));
+
+        var footerH = D(70);
+        var contentTop = D(80) + D(34) + D(18);
+        var page = new Rectangle(pad, contentTop, inner, Math.Max(D(80), h - footerH - D(8) - contentTop));
+        _storePanel.Bounds = page;
+        _agentPanel.Bounds = page;
+
+        var y = contentTop;
         _statusLabelRect = new Rectangle(pad, y, inner, D(16));
         y += D(22);
         _status.Bounds = new Rectangle(pad, y, inner, D(42));
@@ -494,7 +557,6 @@ internal sealed class MainWindow : Form
         _chips.Bounds = new Rectangle(pad, y, inner, D(28));
         y += D(28) + D(10);
 
-        var footerH = D(70);
         var listBottom = h - footerH - D(4);
         var listRect = new Rectangle(pad, y, inner, Math.Max(D(60), listBottom - y));
         _list.Bounds = listRect;
@@ -526,6 +588,13 @@ internal sealed class MainWindow : Form
         TextRenderer.DrawText(g, _host.Enabled ? "Masking" : "Masking off", Theme.Small, _maskingLabelRect,
             _host.Enabled ? Theme.Muted : Theme.Warn, Theme.RightMiddle);
 
+        using (var pen = new Pen(Theme.Border))
+            g.DrawLine(pen, _footerLine.Left, _footerLine.Top, _footerLine.Right, _footerLine.Top);
+        TextRenderer.DrawText(g, "Closing this window keeps the app running in the tray.", Theme.Small, _hintRect, Theme.Faint, Theme.LeftMiddle);
+
+        if (_tabs.SelectedIndex != StatusTab)
+            return;
+
         TextRenderer.DrawText(g, "YOUR STATUS", Theme.Section, _statusLabelRect, Theme.Faint, Theme.LeftMiddle);
         TextRenderer.DrawText(g, "WHO CAN STILL SEE YOU", Theme.Section, _visibleLabelRect, Theme.Faint, Theme.LeftMiddle);
         if (_visibleCount > 0)
@@ -537,11 +606,6 @@ internal sealed class MainWindow : Form
             : "You're visible to everyone right now. Ticked friends will still see you when you switch to Offline or Mobile.";
         TextRenderer.DrawText(g, help, Theme.Small, _helpRect, Theme.Muted,
             TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
-
-        using (var pen = new Pen(Theme.Border))
-            g.DrawLine(pen, _footerLine.Left, _footerLine.Top, _footerLine.Right, _footerLine.Top);
-
-        TextRenderer.DrawText(g, "Closing this window keeps the app running in the tray.", Theme.Small, _hintRect, Theme.Faint, Theme.LeftMiddle);
     }
 
     private Font? _titleFont;
@@ -734,6 +798,74 @@ internal sealed class SegmentedControl : DrawnControl
             var textRect = new Rectangle((int)(startX + dot + gap), (int)seg.Y, textSize.Width + D(2), (int)seg.Height);
             var color = selected ? Color.White : (i == _hover ? Theme.Text : Theme.Muted);
             TextRenderer.DrawText(g, _items[i], font, textRect, color, Theme.LeftMiddle);
+        }
+    }
+}
+
+internal sealed class TabBar : DrawnControl
+{
+    private readonly string[] _labels;
+    private readonly List<Rectangle> _rects = new();
+    private int _selected;
+    private int _hover = -1;
+
+    public TabBar(float scale, string[] labels) : base(scale)
+    {
+        _labels = labels;
+        Cursor = Cursors.Default;
+    }
+
+    public event EventHandler? SelectedChanged;
+
+    public int SelectedIndex => _selected;
+
+    private int IndexAt(Point p) => _rects.FindIndex(r => r.Contains(p));
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        var i = IndexAt(e.Location);
+        Cursor = i >= 0 ? Cursors.Hand : Cursors.Default;
+        if (i != _hover) { _hover = i; Invalidate(); }
+        base.OnMouseMove(e);
+    }
+
+    protected override void OnMouseLeave(EventArgs e) { _hover = -1; Invalidate(); base.OnMouseLeave(e); }
+
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        base.OnMouseDown(e);
+        if (e.Button != MouseButtons.Left) return;
+        var i = IndexAt(e.Location);
+        if (i < 0 || i == _selected) return;
+        _selected = i;
+        Invalidate();
+        SelectedChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        _rects.Clear();
+
+        using (var line = new Pen(Theme.Border))
+            g.DrawLine(line, 0, Height - 1, Width, Height - 1);
+
+        var x = 0;
+        for (var i = 0; i < _labels.Length; i++)
+        {
+            var font = i == _selected ? Theme.BodyBold : Theme.Body;
+            var w = TextRenderer.MeasureText(g, _labels[i], Theme.BodyBold, Size.Empty, Theme.Measure).Width + D(4);
+            var rect = new Rectangle(x, 0, w, Height);
+            _rects.Add(new Rectangle(x - D(8), 0, w + D(16), Height));
+
+            var color = i == _selected ? Theme.Text : i == _hover ? Theme.Text : Theme.Muted;
+            TextRenderer.DrawText(g, _labels[i], font, new Rectangle(rect.X, 0, rect.Width, Height - D(4)), color, Theme.CenterMiddle);
+
+            if (i == _selected)
+                Theme.FillRound(g, Theme.Accent, new RectangleF(rect.X, Height - D(3), rect.Width, D(3)), D(1.5f));
+
+            x = rect.Right + D(22);
         }
     }
 }

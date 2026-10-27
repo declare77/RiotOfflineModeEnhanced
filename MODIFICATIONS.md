@@ -15,6 +15,13 @@ Changes from upstream Deceive:
   presence directly (`AppSettings.cs`, `FriendDirectory.cs`, `ProxiedConnection.cs`).
 - App window (`MainWindow.cs`): status, masking toggle, searchable friends list with
   online state and tick boxes for who can still see you. Opened from the tray icon.
+- Window tabs (`MainWindow.cs`): Status, Store and Agent select. The window is larger to fit them.
+- Store tab (`StorePanel.cs`): daily store, Night Market and wallet, read from Riot's store service with
+  the Riot Client's local session (`ValorantApi.cs`). Names, rarity and pictures come from valorant-api.com
+  (`ValorantContent.cs`), cached in `%APPDATA%\Deceive\valorant-content`.
+- Agent select tab (`AgentSelectPanel.cs`): your team's names, agents, level, rank, act record and peak rank
+  during agent select. Players with a hidden name stay hidden unless they're on your friends list. Requests
+  are only made while the tab is open and the window isn't minimized.
 - Thread-safe writes to the proxied chat streams.
 - The upstream update check is disabled, and error messages no longer send users to Deceive's issue tracker.
 

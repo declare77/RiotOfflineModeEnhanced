@@ -33,6 +33,8 @@ Most "appear offline" tools are all-or-nothing: either everybody sees you or nob
 | ✅ **Who-can-see-me list** | Tick friends in the window. They see your real status, and everyone else sees you offline or on mobile. Changes apply instantly. |
 | 🟢 **Live friends list** | Search your friends and see who's online, in game, away or on mobile at a glance. |
 | 🪟 **A real window** | Dark, compact and resizable. Open it from the tray when you need it and close it when you don't. |
+| 🛒 **Store tab** | Today's four skins and the Night Market (with discounts), with prices, rarity, reset timers and your VP, Radianite and Kingdom Credits. VALORANT only. |
+| 👥 **Agent select tab** | Your team's names, agents (hovering or locked), level, current rank and RR, this act's record and peak rank, while you pick. Players who hide their name stay hidden. VALORANT only. |
 | 💬 **Chat commands** | Message the helper friend `offline`, `online`, `mobile`, `status`, `visible` or `help` without leaving the client. |
 | ⚙️ **Settings file** | `RiotOfflineModeEnhanced-settings.json` sits next to the exe. Edit it and save, and changes apply live. |
 
@@ -49,7 +51,9 @@ Keep `RiotOfflineModeEnhanced.exe` and `RiotOfflineModeEnhanced.exe.config` in t
 
 ## Is it safe?
 
-**What it touches:** only your *chat presence*, the little status your friends see. It runs as a small local relay between the Riot Client and Riot's chat servers and rewrites that one thing. It doesn't modify game files, inject into games, read game memory, or install drivers or services.
+**What it touches:** your *chat presence*, the little status your friends see. It runs as a small local relay between the Riot Client and Riot's chat servers and rewrites that one thing. It doesn't modify game files, inject into games, read game memory, or install drivers or services.
+
+**The Store and Agent select tabs** only *read* information. They borrow your session from the Riot Client's own local API and ask Riot's VALORANT web services for your store, wallet, your team in agent select and their ranks, the same way store-checker and tracker sites do. They never pick, lock or buy anything, and they only send requests while that tab is open and the window isn't minimized. Skin, agent and rank pictures come from the community [valorant-api.com](https://valorant-api.com). This is a different kind of access from the chat relay, so the "use at your own risk" note applies to it too.
 
 **Where the exe comes from:** nobody uploads it by hand. Every release is compiled by [GitHub Actions](.github/workflows/build.yml) on a clean GitHub-hosted Windows machine, straight from the code in this repository. Each release page lists SHA-256 checksums and comes with a signed build attestation.
 
@@ -73,6 +77,18 @@ gh attestation verify RiotOfflineModeEnhanced.zip --repo declare77/RiotOfflineMo
 <summary><b>Can I get banned for this?</b></summary>
 
 It only changes chat presence. It never touches the game or Vanguard's territory. Deceive, which this project is built on, has been used this way for years, and its README notes that Riot said its users won't be banned. That statement was about Deceive rather than this project, and Riot can change its mind at any time, so use it at your own risk.
+</details>
+
+<details>
+<summary><b>Why does someone show as "Hidden name" in agent select?</b></summary>
+
+They turned on VALORANT's option to hide their name. The app respects that: no name and no stats are shown for them, unless they're already on your friends list.
+</details>
+
+<details>
+<summary><b>The Store or Agent select tab says it can't find my region.</b></summary>
+
+Launch VALORANT once with the app running. It picks up your region from the game and remembers it, so the Store tab works afterwards even when only the Riot Client is open.
 </details>
 
 <details>

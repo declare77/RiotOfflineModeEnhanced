@@ -41,6 +41,14 @@ USING IT
     * tick friends who should still see your real status while you appear
       offline or on mobile
 
+- The Store tab (VALORANT) shows today's four skins and the Night Market
+  when it's open, with prices, discounts, reset timers and your wallet.
+
+- The Agent select tab (VALORANT) shows your team while you pick agents:
+  names, agents, level, current rank and RR, this act's wins and losses and
+  peak rank. Players who hide their name stay hidden unless they're on your
+  friends list. Keep the tab open during agent select; it updates by itself.
+
 - A friend called "RiotOfflineModeEnhanced" appears at the top of your friends
   list. It's not a real player. Message it to control RiotOfflineModeEnhanced
   from chat:
@@ -69,9 +77,14 @@ the file.
 GOOD TO KNOW
 ------------
 
-- RiotOfflineModeEnhanced only changes your status in Riot's chat. It doesn't
-  touch the game itself. It is still an unofficial third-party tool, so use it
-  at your own risk.
+- RiotOfflineModeEnhanced changes your status in Riot's chat. It doesn't
+  touch the game itself. The Store and Agent select tabs only read data from
+  Riot's VALORANT web services using your Riot Client session, and only while
+  that tab is open. It is still an unofficial third-party tool, so use it at
+  your own risk.
+
+- If the Store or Agent select tab can't find your region, launch VALORANT
+  once with the app running. It remembers your region after that.
 
 - Friends you tick only see you if they're on your friends list. If a name
   shows "Not on friends list", check the spelling and the #tag.
