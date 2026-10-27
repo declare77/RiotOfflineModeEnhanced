@@ -37,7 +37,7 @@ Most "appear offline" tools are all-or-nothing: either everybody sees you or nob
 | ⭐ **Wishlist** | Star skins you want; a Windows notification tells you on days one is in your store. The app checks once per daily reset. |
 | 🗓️ **Store history** | Every daily store the app has seen, so you can see how often skins come up. |
 | 🔔 **Agent select alert** | Flashes the taskbar button and plays a chime when agent select starts, so you can tab out while you queue. Read from your own chat status, no extra requests. |
-| 👥 **Agent select tab** | Your team's names, agents (hovering or locked), level, current rank and RR, this act's record and peak rank, while you pick. Hidden names stay hidden (their stats still show), and hidden ranks stay hidden. VALORANT only. |
+| 👥 **Match tab** | In agent select: your team's names, agents (hovering or locked), level, current rank and RR, this act's record and peak rank. Once the match loads: both teams with ranks and weapon skins, and party markers for you and your friends. Hidden names stay hidden (their stats still show), and hidden ranks stay hidden. VALORANT only. |
 | 📈 **Career tab** | Rank and RR with a progress bar and "wins to rank up", this session's record and RR, trends (ACS, K/D, headshot %, damage per round), match history with full scoreboards and party markers, and your win rate by map and agent. Matches are fetched once and kept on your PC. |
 | 🤝 **Played with before** | Agent select shows teammates you've played with or against, and how those games went. |
 | 💬 **Chat commands** | Message the helper friend `offline`, `online`, `mobile`, `status`, `visible` or `help` without leaving the client. |
@@ -85,13 +85,13 @@ It only changes chat presence. It never touches the game or Vanguard's territory
 </details>
 
 <details>
-<summary><b>Why does someone show as "Hidden name" in agent select?</b></summary>
+<summary><b>Why does someone show as "Hidden name" in the Match tab?</b></summary>
 
 They turned on VALORANT's option to hide their name. The app respects that and doesn't show their name, unless they're already on your friends list. Their rank and record still show, unless they also hid their act rank.
 </details>
 
 <details>
-<summary><b>The Store or Agent select tab says it can't find my region.</b></summary>
+<summary><b>The Store or Match tab says it can't find my region.</b></summary>
 
 Launch VALORANT once with the app running. It picks up your region from the game and remembers it, so the Store tab works afterwards even when only the Riot Client is open.
 </details>

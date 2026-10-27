@@ -18,6 +18,17 @@ internal static class FriendDirectory
     // jid -> (resource -> show value)
     private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, string>> Presence = new(StringComparer.OrdinalIgnoreCase);
 
+    // jid -> what they're doing in VALORANT (from the presence's hidden details), and since when.
+    private static readonly ConcurrentDictionary<string, (ValorantPresence presence, DateTime stateSince)> Valorant = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>A friend's VALORANT details (map, mode, score, party) if they're playing it.</summary>
+    internal static ValorantPresence? GetValorant(string jid) =>
+        Valorant.TryGetValue(jid, out var v) && GetState(jid) != OnlineState.Offline ? v.presence : null;
+
+    /// <summary>When the friend's VALORANT state (menus, agent select, match) last changed, as far as we saw.</summary>
+    internal static DateTime? ValorantSince(string jid) =>
+        Valorant.TryGetValue(jid, out var v) ? v.stateSince : null;
+
     /// <summary>Raised (on a background thread) whenever the friends list or someone's online state changes.</summary>
     internal static event EventHandler? Changed;
 
@@ -176,16 +187,34 @@ internal static class FriendDirectory
         {
             if (type.Groups["v"].Value != "unavailable")
                 return false;
-            return resources.TryRemove(resource, out _);
+            var removed = resources.TryRemove(resource, out _);
+            if (resources.IsEmpty) Valorant.TryRemove(jid, out _);
+            return removed;
+        }
+
+        // VALORANT details ride along in <games><valorant><p>base64</p>.
+        var valorantChanged = false;
+        if (body.IndexOf("<valorant>", StringComparison.Ordinal) >= 0 && ValorantPresence.FromStanza(body) is { } vp)
+        {
+            var since = Valorant.TryGetValue(jid, out var old0) && old0.presence.SessionLoopState == vp.SessionLoopState
+                ? old0.stateSince
+                : DateTime.UtcNow;
+            valorantChanged = !Valorant.TryGetValue(jid, out var prev) || !SameValorant(prev.presence, vp);
+            Valorant[jid] = (vp, since);
         }
 
         var show = ShowRegex.Match(body);
         var value = show.Success ? show.Groups["v"].Value.Trim().ToLowerInvariant() : "chat";
         if (resources.TryGetValue(resource, out var old) && old == value)
-            return false;
+            return valorantChanged;
         resources[resource] = value;
         return true;
     }
+
+    private static bool SameValorant(ValorantPresence a, ValorantPresence b) =>
+        a.SessionLoopState == b.SessionLoopState && a.MatchMap == b.MatchMap && a.QueueId == b.QueueId &&
+        a.ScoreAlly == b.ScoreAlly && a.ScoreEnemy == b.ScoreEnemy && a.PartyId == b.PartyId && a.PartySize == b.PartySize &&
+        a.CompetitiveTier == b.CompetitiveTier && a.IsIdle == b.IsIdle;
 
     internal static OnlineState GetState(string jid)
     {

@@ -635,6 +635,18 @@ internal static class ValorantApi
         public string SelectionState = ""; // "", "selected" (hovering), "locked"
         public int Level;            // 0 = hidden
         public int PregameTier;
+        public string Team = "";     // live match: "Blue"/"Red" (or the player's own ID in deathmatch)
+        /// <summary>Live match: weapon ID -> the IDs in that weapon's loadout sockets (skin, level, chroma, buddy).</summary>
+        public Dictionary<string, List<string>> Loadout = new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    internal sealed class LiveMatch
+    {
+        public string MatchId = "";
+        public string MapId = "";
+        public string ModeId = "";
+        public string YourTeam = "";
+        public List<Teammate> Players = new();
     }
 
     internal sealed class Pregame
@@ -668,36 +680,132 @@ internal static class ValorantApi
         var session = await GetSessionAsync().ConfigureAwait(false);
         var pregame = ParsePregame(match, matchId, session.Puuid, friendLookup);
 
-        // Names for everyone who doesn't hide theirs: one request per match, not per refresh.
+        await FillNamesAsync(pregame.Team).ConfigureAwait(false);
+        return pregame;
+    }
+
+    /// <summary>Names for everyone who doesn't hide theirs: one request per new player, not per refresh.</summary>
+    private static async Task FillNamesAsync(List<Teammate> players)
+    {
         lock (NameCache)
         {
-            foreach (var mate in pregame.Team.Where(t => !t.Hidden && t.Name.Length == 0))
+            foreach (var mate in players.Where(t => !t.Hidden && t.Name.Length == 0))
                 if (NameCache.TryGetValue(mate.Puuid, out var known))
                     (mate.Name, mate.Tag) = known;
         }
 
-        var lookup = pregame.Team.Where(t => !t.Hidden && t.Name.Length == 0).Select(t => t.Puuid).ToList();
-        if (lookup.Count > 0)
+        var lookup = players.Where(t => !t.Hidden && t.Name.Length == 0).Select(t => t.Puuid).ToList();
+        if (lookup.Count == 0) return;
+        try
         {
-            try
+            var body = new JsonArray(lookup.Select(id => (JsonNode)JsonValue.Create(id)!).ToArray()).ToJsonString();
+            var names = await SendAsync(HttpMethod.Put, s => $"{s.Pd}/name-service/v2/players", body).ConfigureAwait(false);
+            ApplyNames(players, names);
+            lock (NameCache)
             {
-                var body = new JsonArray(lookup.Select(id => (JsonNode)JsonValue.Create(id)!).ToArray()).ToJsonString();
-                var names = await SendAsync(HttpMethod.Put, s => $"{s.Pd}/name-service/v2/players", body).ConfigureAwait(false);
-                ApplyNames(pregame, names);
-                lock (NameCache)
-                {
-                    foreach (var mate in pregame.Team.Where(t => lookup.Contains(t.Puuid) && t.Name.Length > 0))
-                        NameCache[mate.Puuid] = (mate.Name, mate.Tag);
-                }
-            }
-            catch (Exception e)
-            {
-                Trace.WriteLine("Name lookup failed: " + e.Message);
+                foreach (var mate in players.Where(t => lookup.Contains(t.Puuid) && t.Name.Length > 0))
+                    NameCache[mate.Puuid] = (mate.Name, mate.Tag);
             }
         }
-
-        return pregame;
+        catch (Exception e)
+        {
+            Trace.WriteLine("Name lookup failed: " + e.Message);
+        }
     }
+
+    // ------------------------------------------------------------------ live match
+
+    /// <summary>The match you're in right now (after agent select), or null.</summary>
+    internal static async Task<string?> GetLiveMatchIdAsync()
+    {
+        var player = await SendAsync(HttpMethod.Get, s => $"{s.Glz}/core-game/v1/players/{s.Puuid}").ConfigureAwait(false);
+        var id = player.Str("MatchID");
+        return id.Length > 0 ? id : null;
+    }
+
+    internal static async Task<LiveMatch?> GetLiveMatchAsync(string matchId, Func<string, (string name, string tag)?> friendLookup)
+    {
+        var match = await SendAsync(HttpMethod.Get, s => $"{s.Glz}/core-game/v1/matches/{Uri.EscapeDataString(matchId)}").ConfigureAwait(false);
+        if (match is null) return null;
+        var live = ParseLiveMatch(match, await GetPuuidAsync().ConfigureAwait(false), friendLookup);
+
+        try
+        {
+            var loadouts = await SendAsync(HttpMethod.Get, s => $"{s.Glz}/core-game/v1/matches/{Uri.EscapeDataString(matchId)}/loadouts").ConfigureAwait(false);
+            ApplyLoadouts(live, loadouts);
+        }
+        catch (Exception e)
+        {
+            Trace.WriteLine("Loadouts failed: " + e.Message);
+        }
+
+        await FillNamesAsync(live.Players).ConfigureAwait(false);
+        return live;
+    }
+
+    internal static LiveMatch ParseLiveMatch(JsonNode match, string yourPuuid, Func<string, (string name, string tag)?> friendLookup)
+    {
+        var live = new LiveMatch
+        {
+            MatchId = match.Str("MatchID"),
+            MapId = match.Str("MapID"),
+            ModeId = match.Str("ModeID")
+        };
+
+        foreach (var p in match.Arr("Players"))
+        {
+            if (p.Bool("IsCoach")) continue;
+            var puuid = p.Str("Subject");
+            if (puuid.Length == 0) continue;
+            var identity = p?["PlayerIdentity"];
+            var isYou = string.Equals(puuid, yourPuuid, StringComparison.OrdinalIgnoreCase);
+            var mate = new Teammate
+            {
+                Puuid = puuid,
+                IsYou = isYou,
+                Team = p.Str("TeamID"),
+                AgentId = p.Str("CharacterID"),
+                SelectionState = "locked",
+                Level = identity.Bool("HideAccountLevel") && !isYou ? 0 : (int)identity.Num("AccountLevel")
+            };
+            if (identity.Bool("Incognito") && !isYou)
+            {
+                if (friendLookup(puuid) is { } friend) (mate.Name, mate.Tag) = friend;
+                else mate.Hidden = true;
+            }
+
+            if (isYou) live.YourTeam = mate.Team;
+            live.Players.Add(mate);
+        }
+
+        // Your team first (you at the top), then the other team.
+        live.Players = live.Players
+            .OrderByDescending(t => string.Equals(t.Team, live.YourTeam, StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(t => t.IsYou)
+            .ToList();
+        return live;
+    }
+
+    internal static void ApplyLoadouts(LiveMatch live, JsonNode? json)
+    {
+        foreach (var entry in json.Arr("Loadouts"))
+        {
+            var loadout = entry?["Loadout"];
+            var mate = live.Players.FirstOrDefault(t => string.Equals(t.Puuid, loadout.Str("Subject"), StringComparison.OrdinalIgnoreCase));
+            if (mate is null) continue;
+            foreach (var item in loadout.Obj("Items"))
+            {
+                var ids = new List<string>();
+                // The skin socket first, so it wins when resolving names.
+                foreach (var socket in item.Value.Obj("Sockets").OrderByDescending(sk => sk.Key.Equals(SkinSocket, StringComparison.OrdinalIgnoreCase)))
+                    if (socket.Value?["Item"].Str("ID") is { Length: > 0 } id)
+                        ids.Add(id);
+                mate.Loadout[item.Key] = ids;
+            }
+        }
+    }
+
+    private const string SkinSocket = "bcef87d6-209b-46c6-8b19-fbe40bd95abc";
 
     private static readonly Dictionary<string, (string name, string tag)> NameCache = new(StringComparer.OrdinalIgnoreCase);
 
@@ -708,11 +816,13 @@ internal static class ValorantApi
             return NameCache.TryGetValue(puuid, out var n) ? n : null;
     }
 
-    internal static void ApplyNames(Pregame pregame, JsonNode? names)
+    internal static void ApplyNames(Pregame pregame, JsonNode? names) => ApplyNames(pregame.Team, names);
+
+    internal static void ApplyNames(List<Teammate> players, JsonNode? names)
     {
         foreach (var entry in names as JsonArray ?? new JsonArray())
         {
-            var mate = pregame.Team.FirstOrDefault(t => string.Equals(t.Puuid, entry.Str("Subject"), StringComparison.OrdinalIgnoreCase));
+            var mate = players.FirstOrDefault(t => string.Equals(t.Puuid, entry.Str("Subject"), StringComparison.OrdinalIgnoreCase));
             if (mate is null || mate.Hidden) continue;
             mate.Name = entry.Str("GameName");
             mate.Tag = entry.Str("TagLine");

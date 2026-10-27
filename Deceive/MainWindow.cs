@@ -126,7 +126,7 @@ internal sealed class MainWindow : Form
     private readonly LinkText _settingsLink;
     private readonly TabBar _tabs;
     private readonly StorePanel _storePanel;
-    private readonly AgentSelectPanel _agentPanel;
+    private readonly MatchPanel _agentPanel;
     private readonly CareerPanel _careerPanel;
     private Control[] _statusControls = Array.Empty<Control>();
 
@@ -200,11 +200,11 @@ internal sealed class MainWindow : Form
         _settingsLink = new LinkText(_s, "Edit settings file");
         _settingsLink.Click += (_, _) => AppSettings.OpenInEditor();
 
-        _tabs = new TabBar(_s, new[] { "Status", "Store", "Agent select", "Career" });
+        _tabs = new TabBar(_s, new[] { "Status", "Store", "Match", "Career" });
         _tabs.SelectedChanged += (_, _) => OnTabChanged();
 
         _storePanel = new StorePanel(_s) { Visible = false };
-        _agentPanel = new AgentSelectPanel(_s) { Visible = false };
+        _agentPanel = new MatchPanel(_s) { Visible = false };
         _careerPanel = new CareerPanel(_s) { Visible = false };
 
         _statusControls = new Control[] { _status, _search, _chips, _empty, _list };

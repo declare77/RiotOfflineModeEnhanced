@@ -28,8 +28,9 @@ Changes from upstream Deceive:
   scoreboards and party markers, map and agent breakdown. Matches are trimmed and cached in
   `%APPDATA%\Deceive\matches` so each is fetched once. Scoreboards only name you, your party, your friends and
   players whose names were visible in agent select.
-- Agent select tab (`AgentSelectPanel.cs`): your team's names, agents, level, rank, act record and peak rank
-  during agent select. Hidden names stay hidden unless they're on your friends list (their stats still show); hidden act ranks stay hidden. Requests
+- Match tab (`MatchPanel.cs`): your team's names, agents, level, rank, act record and peak rank during agent
+  select, then both teams with ranks and weapon skins once the match loads. Party markers come from your own
+  and your friends' chat status. Hidden names stay hidden unless they're on your friends list (their stats still show); hidden act ranks stay hidden. Requests
   are only made while the tab is open and the window isn't minimized.
 - Thread-safe writes to the proxied chat streams.
 - The upstream update check is disabled, and error messages no longer send users to Deceive's issue tracker.

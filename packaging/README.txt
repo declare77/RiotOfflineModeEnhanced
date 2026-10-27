@@ -53,13 +53,14 @@ USING IT
   Each match is downloaded once and then kept on your PC.
 
 - When agent select starts, the window's taskbar button flashes and a
-  chime plays (turn either off at the top of the Agent select tab).
+  chime plays (turn either off at the top of the Match tab).
 
-- The Agent select tab (VALORANT) shows your team while you pick agents:
+- The Match tab (VALORANT) shows your team while you pick agents:
   names, agents, level, current rank and RR, this act's wins and losses and
-  peak rank. Hidden names stay hidden unless they're on your friends list
-  (their stats still show), and players who hide their act rank keep it
-  hidden.
+  peak rank. Once the match loads it shows both teams, with ranks and
+  weapon skins. Hidden names stay hidden unless they're on your friends
+  list (their stats still show), and players who hide their act rank keep
+  it hidden.
 
 - A friend called "RiotOfflineModeEnhanced" appears at the top of your friends
   list. It's not a real player. Message it to control RiotOfflineModeEnhanced
@@ -90,12 +91,12 @@ GOOD TO KNOW
 ------------
 
 - RiotOfflineModeEnhanced changes your status in Riot's chat. It doesn't
-  touch the game itself. The Store and Agent select tabs only read data from
+  touch the game itself. The Store, Match and Career tabs only read data from
   Riot's VALORANT web services using your Riot Client session, and only while
   that tab is open. It is still an unofficial third-party tool, so use it at
   your own risk.
 
-- If the Store or Agent select tab can't find your region, launch VALORANT
+- If the Store or Match tab can't find your region, launch VALORANT
   once with the app running. It remembers your region after that.
 
 - Friends you tick only see you if they're on your friends list. If a name
