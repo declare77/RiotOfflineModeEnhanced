@@ -32,6 +32,8 @@ internal static class ValorantContent
         public string Icon = "";
         public Color Rarity = Color.Empty;
         public string RarityIcon = "";
+        public string RarityName = "";  // Select, Deluxe, Premium, Exclusive, Ultra
+        public int RarityRank;          // 1 (Select) .. 5 (Ultra), 0 for none
     }
 
     /// <summary>A buddy, spray, player card, title, flex or bundle.</summary>
@@ -40,6 +42,32 @@ internal static class ValorantContent
         public string Name = "";
         public string Icon = "";
         public string Kind = ""; // "Buddy", "Spray", "Card", "Title", "Flex", "Bundle"
+    }
+
+    internal sealed class PassLevel
+    {
+        public int Xp;              // XP needed to go from the previous level to this one
+        public string RewardType = "";
+        public string RewardId = "";
+        public int Amount;
+        public bool Highlighted;
+    }
+
+    internal sealed class BattlePass
+    {
+        public string Id = "";      // contract ID
+        public string Name = "";
+        public string ActId = "";
+        public List<PassLevel> Levels = new();
+    }
+
+    internal sealed class Mission
+    {
+        public string Id = "";
+        public string Title = "";
+        public string Type = "";    // Weekly, Daily, ...
+        public int Xp;
+        public int ProgressToComplete;
     }
 
     internal sealed class Agent
@@ -74,6 +102,8 @@ internal static class ValorantContent
         public readonly List<Skin> SkinList = new();
         public readonly Dictionary<string, Item> Items = new(StringComparer.OrdinalIgnoreCase);
         public readonly Dictionary<string, string> Weapons = new(StringComparer.OrdinalIgnoreCase); // id -> name
+        public readonly Dictionary<string, BattlePass> BattlePasses = new(StringComparer.OrdinalIgnoreCase);
+        public readonly Dictionary<string, Mission> Missions = new(StringComparer.OrdinalIgnoreCase);
         public readonly Dictionary<string, Item> Bundles = new(StringComparer.OrdinalIgnoreCase);
         public readonly Dictionary<string, Agent> Agents = new(StringComparer.OrdinalIgnoreCase);
         public readonly Dictionary<string, string> Maps = new(StringComparer.OrdinalIgnoreCase); // mapUrl -> name
@@ -144,6 +174,20 @@ internal static class ValorantContent
         }
     }
 
+    /// <summary>Downloads everything again (e.g. when a new act's battle pass is missing).</summary>
+    internal static async Task<Catalog> RefreshAsync()
+    {
+        await LoadLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            return _catalog = await Task.Run(() => BuildAsync(true)).ConfigureAwait(false);
+        }
+        finally
+        {
+            LoadLock.Release();
+        }
+    }
+
     private static async Task<Catalog> BuildAsync(bool forceRefresh)
     {
         var catalog = new Catalog();
@@ -154,9 +198,9 @@ internal static class ValorantContent
         var ranks = await FetchAsync("competitivetiers", "https://valorant-api.com/v1/competitivetiers?language=en-US", forceRefresh).ConfigureAwait(false);
         var seasons = await FetchAsync("seasons", "https://valorant-api.com/v1/seasons?language=en-US", forceRefresh).ConfigureAwait(false);
 
-        var rarity = new Dictionary<string, (Color color, string icon)>(StringComparer.OrdinalIgnoreCase);
+        var rarity = new Dictionary<string, (Color color, string icon, string name, int rank)>(StringComparer.OrdinalIgnoreCase);
         foreach (var t in tiers.Arr("data"))
-            rarity[t.Str("uuid")] = (ParseRgba(t.Str("highlightColor")), t.Str("displayIcon"));
+            rarity[t.Str("uuid")] = (ParseRgba(t.Str("highlightColor")), t.Str("displayIcon"), t.Str("devName"), (int)t.Num("rank") + 1);
 
         // Weapon names, from the full weapons list (skins only know their weapon's ID).
         var weapons = await FetchAsync("weapons", "https://valorant-api.com/v1/weapons?language=en-US", forceRefresh).ConfigureAwait(false);
@@ -222,11 +266,11 @@ internal static class ValorantContent
         return catalog;
     }
 
-    private static void AddSkin(Catalog catalog, JsonNode? skin, string weapon, Dictionary<string, (Color color, string icon)> rarity)
+    private static void AddSkin(Catalog catalog, JsonNode? skin, string weapon, Dictionary<string, (Color color, string icon, string name, int rank)> rarity)
     {
         var skinId = skin.Str("uuid");
         if (skinId.Length == 0) return;
-        var tier = rarity.TryGetValue(skin.Str("contentTierUuid"), out var r) ? r : (Color.Empty, "");
+        var tier = rarity.TryGetValue(skin.Str("contentTierUuid"), out var r) ? r : (Color.Empty, "", "", 0);
         var levels = skin.Arr("levels");
         var firstLevel = levels.FirstOrDefault();
         var chromaIcon = skin.Arr("chromas").Select(c => c.Str("fullRender")).FirstOrDefault(s => s.Length > 0) ?? "";
@@ -238,7 +282,9 @@ internal static class ValorantContent
             Weapon = weapon,
             Icon = FirstNonEmpty(firstLevel.Str("displayIcon"), skin.Str("displayIcon"), chromaIcon),
             Rarity = tier.Item1,
-            RarityIcon = tier.Item2
+            RarityIcon = tier.Item2,
+            RarityName = tier.Item3,
+            RarityRank = tier.Item4
         };
 
         catalog.Skins[skinId] = item;
@@ -283,6 +329,44 @@ internal static class ValorantContent
         var flex = await FetchAsync("flex", "https://valorant-api.com/v1/flex?language=en-US", forceRefresh).ConfigureAwait(false);
         foreach (var f in flex.Arr("data"))
             catalog.Items[f.Str("uuid")] = new Item { Name = f.Str("displayName"), Icon = f.Str("displayIcon"), Kind = "Flex" };
+
+        var contracts = await FetchAsync("contracts", "https://valorant-api.com/v1/contracts?language=en-US", forceRefresh).ConfigureAwait(false);
+        foreach (var c in contracts.Arr("data"))
+        {
+            var content = c?["content"];
+            if (!string.Equals(content.Str("relationType"), "Season", StringComparison.OrdinalIgnoreCase)) continue;
+            var pass = new BattlePass { Id = c.Str("uuid"), Name = c.Str("displayName"), ActId = content.Str("relationUuid") };
+            foreach (var chapter in content.Arr("chapters"))
+                foreach (var level in chapter.Arr("levels"))
+                {
+                    var reward = level?["reward"];
+                    pass.Levels.Add(new PassLevel
+                    {
+                        Xp = (int)level.Num("xp"),
+                        RewardType = reward.Str("type"),
+                        RewardId = reward.Str("uuid"),
+                        Amount = (int)reward.Num("amount"),
+                        Highlighted = reward.Bool("isHighlighted")
+                    });
+                }
+            if (pass.Id.Length > 0) catalog.BattlePasses[pass.Id] = pass;
+        }
+
+        var missions = await FetchAsync("missions", "https://valorant-api.com/v1/missions?language=en-US", forceRefresh).ConfigureAwait(false);
+        foreach (var m in missions.Arr("data"))
+        {
+            var id = m.Str("uuid");
+            if (id.Length == 0) continue;
+            var type = m.Str("type");
+            catalog.Missions[id] = new Mission
+            {
+                Id = id,
+                Title = m.Str("title") is { Length: > 0 } t ? t : m.Str("displayName"),
+                Type = type.Contains("::") ? type.Substring(type.LastIndexOf(':') + 1) : type,
+                Xp = (int)m.Num("xpGrant"),
+                ProgressToComplete = (int)m.Num("progressToComplete")
+            };
+        }
 
         var bundles = await FetchAsync("bundles", "https://valorant-api.com/v1/bundles?language=en-US", forceRefresh).ConfigureAwait(false);
         foreach (var b in bundles.Arr("data"))

@@ -55,6 +55,9 @@ USING IT
 - The Friends tab shows what your friends are doing in VALORANT (in a
   match, in agent select, in the menus) and your current party's ranks.
 
+- The Collection tab shows the skins you own, your battle pass progress
+  and upcoming rewards, and your weekly missions.
+
 - When agent select starts, the window's taskbar button flashes and a
   chime plays (turn either off at the top of the Match tab).
 
@@ -94,10 +97,11 @@ GOOD TO KNOW
 ------------
 
 - RiotOfflineModeEnhanced changes your status in Riot's chat. It doesn't
-  touch the game itself. The Store, Match and Career tabs only read data from
-  Riot's VALORANT web services using your Riot Client session, and only while
-  that tab is open. It is still an unofficial third-party tool, so use it at
-  your own risk.
+  touch the game itself. The VALORANT tabs only read data from Riot's
+  VALORANT web services using your Riot Client session, and only while that
+  tab is open. The one exception is the wishlist check, once per daily store
+  reset while your wishlist isn't empty. It is still an unofficial
+  third-party tool, so use it at your own risk.
 
 - If the Store or Match tab can't find your region, launch VALORANT
   once with the app running. It remembers your region after that.

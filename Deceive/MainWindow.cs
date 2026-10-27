@@ -129,9 +129,10 @@ internal sealed class MainWindow : Form
     private readonly MatchPanel _agentPanel;
     private readonly CareerPanel _careerPanel;
     private readonly FriendsPanel _friendsPanel;
+    private readonly CollectionPanel _collectionPanel;
     private Control[] _statusControls = Array.Empty<Control>();
 
-    private const int StatusTab = 0, StoreTab = 1, AgentTab = 2, CareerTab = 3, FriendsTab = 4;
+    private const int StatusTab = 0, StoreTab = 1, AgentTab = 2, CareerTab = 3, FriendsTab = 4, CollectionTab = 5;
 
     private readonly Timer _refreshTimer = new() { Interval = 350 };
     private readonly Timer _applyTimer = new() { Interval = 600 };
@@ -201,16 +202,17 @@ internal sealed class MainWindow : Form
         _settingsLink = new LinkText(_s, "Edit settings file");
         _settingsLink.Click += (_, _) => AppSettings.OpenInEditor();
 
-        _tabs = new TabBar(_s, new[] { "Status", "Store", "Match", "Career", "Friends" });
+        _tabs = new TabBar(_s, new[] { "Status", "Store", "Match", "Career", "Friends", "Collection" });
         _tabs.SelectedChanged += (_, _) => OnTabChanged();
 
         _storePanel = new StorePanel(_s) { Visible = false };
         _agentPanel = new MatchPanel(_s) { Visible = false };
         _careerPanel = new CareerPanel(_s) { Visible = false };
         _friendsPanel = new FriendsPanel(_s) { Visible = false };
+        _collectionPanel = new CollectionPanel(_s) { Visible = false };
 
         _statusControls = new Control[] { _status, _search, _chips, _empty, _list };
-        Controls.AddRange(new Control[] { _masking, _tabs, _status, _search, _chips, _empty, _list, _storePanel, _agentPanel, _careerPanel, _friendsPanel, _keepOnTop, _settingsLink });
+        Controls.AddRange(new Control[] { _masking, _tabs, _status, _search, _chips, _empty, _list, _storePanel, _agentPanel, _careerPanel, _friendsPanel, _collectionPanel, _keepOnTop, _settingsLink });
         ResumeLayout(false);
 
         _refreshTimer.Tick += (_, _) =>
@@ -298,6 +300,7 @@ internal sealed class MainWindow : Form
             AgentTab => _agentPanel,
             CareerTab => _careerPanel,
             FriendsTab => _friendsPanel,
+            CollectionTab => _collectionPanel,
             _ => null
         };
         page?.ScrollBy(-e.Delta * D(60) / 120);
@@ -318,6 +321,7 @@ internal sealed class MainWindow : Form
         _agentPanel.Visible = tab == AgentTab;
         _careerPanel.Visible = tab == CareerTab;
         _friendsPanel.Visible = tab == FriendsTab;
+        _collectionPanel.Visible = tab == CollectionTab;
         _tabs.Invalidate();
         if (tab == StatusTab && _empty.Visible) _empty.BringToFront();
         UpdatePageActivity();
@@ -327,12 +331,13 @@ internal sealed class MainWindow : Form
     /// <summary>The Store and Agent select tabs only talk to Riot while you can see them.</summary>
     private void UpdatePageActivity()
     {
-        if (_tabs is null || _storePanel is null || _agentPanel is null || _careerPanel is null || _friendsPanel is null) return;
+        if (_tabs is null || _storePanel is null || _agentPanel is null || _careerPanel is null || _friendsPanel is null || _collectionPanel is null) return;
         var showing = Visible && WindowState != FormWindowState.Minimized;
         _storePanel.SetActive(showing && _tabs.SelectedIndex == StoreTab);
         _agentPanel.SetActive(showing && _tabs.SelectedIndex == AgentTab);
         _careerPanel.SetActive(showing && _tabs.SelectedIndex == CareerTab);
         _friendsPanel.SetActive(showing && _tabs.SelectedIndex == FriendsTab);
+        _collectionPanel.SetActive(showing && _tabs.SelectedIndex == CollectionTab);
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
@@ -535,7 +540,7 @@ internal sealed class MainWindow : Form
 
     private void LayoutAll()
     {
-        if (_list is null || _tabs is null || _agentPanel is null || _careerPanel is null || _friendsPanel is null) return;
+        if (_list is null || _tabs is null || _agentPanel is null || _careerPanel is null || _friendsPanel is null || _collectionPanel is null) return;
         var w = ClientSize.Width;
         var h = ClientSize.Height;
         var pad = D(20);
@@ -557,6 +562,7 @@ internal sealed class MainWindow : Form
         _agentPanel.Bounds = page;
         _careerPanel.Bounds = page;
         _friendsPanel.Bounds = page;
+        _collectionPanel.Bounds = page;
 
         var y = contentTop;
         _statusLabelRect = new Rectangle(pad, y, inner, D(16));

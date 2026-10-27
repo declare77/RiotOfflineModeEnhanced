@@ -15,7 +15,10 @@ Changes from upstream Deceive:
   presence directly (`AppSettings.cs`, `FriendDirectory.cs`, `ProxiedConnection.cs`).
 - App window (`MainWindow.cs`): status, masking toggle, searchable friends list with
   online state and tick boxes for who can still see you. Opened from the tray icon.
-- Window tabs (`MainWindow.cs`): Status, Store and Agent select. The window is larger to fit them.
+- Window tabs (`MainWindow.cs`): Status, Store, Match, Career, Friends and Collection. The window is larger to
+  fit them, and pages scroll with a slim drawn scrollbar (`Pages.cs`).
+- Collection tab (`CollectionPanel.cs`, `ProgressData.cs`): owned skins by weapon and rarity, battle pass
+  progress and upcoming rewards, and missions.
 - Store tab (`StorePanel.cs`): daily store, Night Market and wallet, read from Riot's store service with
   the Riot Client's local session (`ValorantApi.cs`). Names, rarity and pictures come from valorant-api.com
   (`ValorantContent.cs`), cached in `%APPDATA%\Deceive\valorant-content`.
