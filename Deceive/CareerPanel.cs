@@ -137,6 +137,11 @@ internal sealed class CareerPanel : PagePanel
                 if (!IsDisposed) Invalidate();
                 await Task.Delay(250);
             }
+
+            // Matches with an agent the cached data doesn't know (a new agent): get fresh data.
+            var agents = Summaries().SelectMany(m => m.Players.Select(p => p.Agent)).Distinct().ToList();
+            if (_catalog is not null && !agents.All(_catalog.Agents.ContainsKey))
+                _catalog = await ValorantContent.GetAsync(mustHaveAgents: agents);
         }
         finally
         {
@@ -288,7 +293,7 @@ internal sealed class CareerPanel : PagePanel
         if (ValorantApi.KnownName(p.Puuid) is { } known)
             return known.name + " #" + known.tag;
         named = false;
-        return _catalog?.Agents.TryGetValue(p.Agent, out var agent) == true ? agent!.Name : "Player";
+        return _catalog?.Agents.TryGetValue(p.Agent, out var agent) == true ? agent!.Name : "New agent";
     }
 
     // ------------------------------------------------------------------ painting
@@ -751,7 +756,7 @@ internal sealed class CareerPanel : PagePanel
             {
                 ValorantContent.Agent? a = null;
                 _catalog?.Agents.TryGetValue(gr.Key, out a);
-                return (name: a?.Name ?? "Unknown", icon: a?.Icon ?? "", games: gr.ToList());
+                return (name: a?.Name ?? "New agent", icon: a?.Icon ?? "", games: gr.ToList());
             })
             .OrderByDescending(x => x.games.Count).ToList();
         return PaintTable(g, y, width, "AGENTS", agents) + D(16);

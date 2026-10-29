@@ -151,6 +151,7 @@ internal sealed class MatchPanel : PagePanel
                         _live = null;
                     }
 
+                    await EnsureAgentsAsync(pregame.Team);
                     _pregame = pregame;
                     _pregameEnded = false;
                     _poll.Interval = 3000; // follow hovers and locks
@@ -230,6 +231,7 @@ internal sealed class MatchPanel : PagePanel
         {
             var live = await ValorantApi.GetLiveMatchAsync(id, FriendLookup);
             if (live is null) return;
+            await EnsureAgentsAsync(live.Players);
             _live = live;
             _liveEnded = false;
             if (_pregame is not null && !_pregameEnded)
@@ -241,6 +243,15 @@ internal sealed class MatchPanel : PagePanel
 
         _poll.Interval = 15000;
         _ = LoadRanksAsync(_live.Players, _live.MatchId);
+    }
+
+    /// <summary>Makes sure every picked agent has a name and picture (new agents need fresh data).</summary>
+    private async Task EnsureAgentsAsync(List<ValorantApi.Teammate> players)
+    {
+        var ids = players.Select(p => p.AgentId).Where(id => id.Length > 0).ToList();
+        if (_catalog is not null && ids.All(_catalog.Agents.ContainsKey)) return;
+        try { _catalog = await ValorantContent.GetAsync(mustHaveAgents: ids); }
+        catch (Exception e) { Trace.WriteLine("Catalog refresh failed: " + e.Message); }
     }
 
     private void MarkEnded()
@@ -624,7 +635,8 @@ internal sealed class MatchPanel : PagePanel
                 TextRenderer.DrawText(g, suffix, Theme.Small, new Rectangle(left + nameW + D(3), line1.Y, nameSpace - nameW - D(3), line1.Height), Theme.Faint, Theme.LeftMiddle);
         }
 
-        var info = agent?.Name ?? "Choosing…";
+        // An agent ID the data doesn't know yet is a brand-new agent, not an empty pick.
+        var info = agent?.Name ?? (mate.AgentId.Length > 0 ? "New agent" : "Choosing…");
         if (!showSkins)
         {
             var stateText = mate.SelectionState switch { "locked" => "Locked", "selected" => "Hovering", _ => "" };

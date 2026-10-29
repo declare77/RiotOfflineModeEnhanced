@@ -152,20 +152,32 @@ internal static class ValorantContent
     internal static Catalog? Loaded => _catalog;
 
     /// <summary>Loads the catalog (from disk if fresh, otherwise from valorant-api.com).</summary>
-    internal static async Task<Catalog> GetAsync(IEnumerable<string>? mustHaveSkins = null)
+    private static DateTime _lastForcedRefresh = DateTime.MinValue;
+
+    /// <summary>
+    /// Loads the catalog. A skin or agent it doesn't know means the cached copy is from before a
+    /// new release (like a new agent), so it downloads a fresh copy — at most every 15 minutes, so an
+    /// ID valorant-api.com hasn't added yet doesn't cause a download on every check.
+    /// </summary>
+    internal static async Task<Catalog> GetAsync(IEnumerable<string>? mustHaveSkins = null, IEnumerable<string>? mustHaveAgents = null)
     {
         await LoadLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            var needed = mustHaveSkins?.Where(id => id.Length > 0).ToList() ?? new List<string>();
-            if (_catalog is not null && needed.All(_catalog.Skins.ContainsKey))
-                return _catalog;
+            var skins = mustHaveSkins?.Where(id => id.Length > 0).ToList() ?? new List<string>();
+            var agents = mustHaveAgents?.Where(id => id.Length > 0).ToList() ?? new List<string>();
+            bool Complete(Catalog c) => skins.All(c.Skins.ContainsKey) && agents.All(c.Agents.ContainsKey);
 
-            // A skin we don't know means the cache is from before a new release.
-            var forceRefresh = _catalog is not null;
-            var catalog = await Task.Run(() => BuildAsync(forceRefresh)).ConfigureAwait(false);
-            if (!forceRefresh && !needed.All(catalog.Skins.ContainsKey))
-                catalog = await Task.Run(() => BuildAsync(true)).ConfigureAwait(false);
+            var catalog = _catalog ?? await Task.Run(() => BuildAsync(false)).ConfigureAwait(false);
+            if (!Complete(catalog) && DateTime.UtcNow - _lastForcedRefresh > TimeSpan.FromMinutes(15))
+            {
+                _lastForcedRefresh = DateTime.UtcNow;
+                var fresh = await Task.Run(() => BuildAsync(true)).ConfigureAwait(false);
+                // Keep the old copy if the download failed and came back emptier.
+                if (fresh.Agents.Count >= catalog.Agents.Count && fresh.Skins.Count >= catalog.Skins.Count)
+                    catalog = fresh;
+            }
+
             return _catalog = catalog;
         }
         finally
