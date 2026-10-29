@@ -33,6 +33,15 @@ Most "appear offline" tools are all-or-nothing: either everybody sees you or nob
 | ✅ **Who-can-see-me list** | Tick friends in the window. They see your real status, and everyone else sees you offline or on mobile. Changes apply instantly. |
 | 🟢 **Live friends list** | Search your friends and see who's online, in game, away or on mobile at a glance. |
 | 🪟 **A real window** | Dark, compact and resizable. Open it from the tray when you need it and close it when you don't. |
+| 🛒 **Store tab** | Today's four skins and the Night Market (with discounts), featured bundles, the Kingdom Credits store and your wallet. VALORANT only. |
+| ⭐ **Wishlist** | Star skins you want; a Windows notification tells you on days one is in your store. The app checks once per daily reset. |
+| 🗓️ **Store history** | Every daily store the app has seen, so you can see how often skins come up. |
+| 🔔 **Agent select alert** | Flashes the taskbar button and plays a chime when agent select starts, so you can tab out while you queue. Read from your own chat status, no extra requests. |
+| 👥 **Match tab** | In agent select: your team's names, agents (hovering or locked), level, current rank and RR, this act's record and peak rank. Once the match loads: both teams with ranks and weapon skins, and party markers for you and your friends. Hidden names stay hidden (their stats still show), and hidden ranks stay hidden. VALORANT only. |
+| 📈 **Career tab** | Rank and RR with a progress bar and "wins to rank up", this session's record and RR, trends (ACS, K/D, headshot %, damage per round), match history with full scoreboards and party markers, and your win rate by map and agent. Matches are fetched once and kept on your PC. |
+| 🤝 **Played with before** | The Match tab shows players you've played with or against, and how those games went. |
+| 🎒 **Collection tab** | Every skin you own, grouped by weapon with rarity counts; battle pass tier, XP to finish and upcoming rewards; your weekly missions with progress. |
+| 🟣 **Friends tab** | What friends are doing in VALORANT right now: in a match (map, mode, score where Riot includes it), in agent select, or in the menus with their party size. Read from their chat status, no extra requests. Plus your current party with everyone's rank. |
 | 💬 **Chat commands** | Message the helper friend `offline`, `online`, `mobile`, `status`, `visible` or `help` without leaving the client. |
 | ⚙️ **Settings file** | `RiotOfflineModeEnhanced-settings.json` sits next to the exe. Edit it and save, and changes apply live. |
 
@@ -49,7 +58,9 @@ Keep `RiotOfflineModeEnhanced.exe` and `RiotOfflineModeEnhanced.exe.config` in t
 
 ## Is it safe?
 
-**What it touches:** only your *chat presence*, the little status your friends see. It runs as a small local relay between the Riot Client and Riot's chat servers and rewrites that one thing. It doesn't modify game files, inject into games, read game memory, or install drivers or services.
+**What it touches:** your *chat presence*, the little status your friends see. It runs as a small local relay between the Riot Client and Riot's chat servers and rewrites that one thing. It doesn't modify game files, inject into games, read game memory, or install drivers or services.
+
+**The VALORANT tabs (Store, Match, Career, Friends, Collection)** only *read* information. They borrow your session from the Riot Client's own local API and ask Riot's VALORANT web services for your store, wallet, matches, ranks, party and collection, the same way store-checker and tracker sites do. They never pick, lock, dodge or buy anything. Each tab only sends requests while it's open and the window isn't minimized, and matches are downloaded once and kept on your PC. The one background request is the wishlist check: while your wishlist isn't empty, the app looks at your store once per daily reset. The agent select alert and friends' activity come from chat status the relay already receives, so they send nothing. Names, pictures and battle pass details come from the community [valorant-api.com](https://valorant-api.com). This is a different kind of access from the chat relay, so the "use at your own risk" note applies to it too.
 
 **Where the exe comes from:** nobody uploads it by hand. Every release is compiled by [GitHub Actions](.github/workflows/build.yml) on a clean GitHub-hosted Windows machine, straight from the code in this repository. Each release page lists SHA-256 checksums and comes with a signed build attestation.
 
@@ -73,6 +84,18 @@ gh attestation verify RiotOfflineModeEnhanced.zip --repo declare77/RiotOfflineMo
 <summary><b>Can I get banned for this?</b></summary>
 
 It only changes chat presence. It never touches the game or Vanguard's territory. Deceive, which this project is built on, has been used this way for years, and its README notes that Riot said its users won't be banned. That statement was about Deceive rather than this project, and Riot can change its mind at any time, so use it at your own risk.
+</details>
+
+<details>
+<summary><b>Why does someone show as "Hidden name" in the Match tab?</b></summary>
+
+They turned on VALORANT's option to hide their name. The app respects that and doesn't show their name, unless they're already on your friends list. Their rank and record still show, unless they also hid their act rank.
+</details>
+
+<details>
+<summary><b>The Store or Match tab says it can't find my region.</b></summary>
+
+Launch VALORANT once with the app running. It picks up your region from the game and remembers it, so the Store tab works afterwards even when only the Riot Client is open.
 </details>
 
 <details>

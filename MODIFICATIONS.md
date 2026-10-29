@@ -15,6 +15,28 @@ Changes from upstream Deceive:
   presence directly (`AppSettings.cs`, `FriendDirectory.cs`, `ProxiedConnection.cs`).
 - App window (`MainWindow.cs`): status, masking toggle, searchable friends list with
   online state and tick boxes for who can still see you. Opened from the tray icon.
+- Window tabs (`MainWindow.cs`): Status, Store, Match, Career, Friends and Collection. The window is larger to
+  fit them, and pages scroll with a slim drawn scrollbar (`Pages.cs`).
+- Collection tab (`CollectionPanel.cs`, `ProgressData.cs`): owned skins by weapon and rarity, battle pass
+  progress and upcoming rewards, and missions.
+- Store tab (`StorePanel.cs`): daily store, Night Market and wallet, read from Riot's store service with
+  the Riot Client's local session (`ValorantApi.cs`). Names, rarity and pictures come from valorant-api.com
+  (`ValorantContent.cs`), cached in `%APPDATA%\Deceive\valorant-content`.
+- Store tab sub-pages: featured bundles and the Kingdom Credits store, a wishlist with Windows notifications
+  (`StoreWatch.cs` checks once per daily reset while the wishlist isn't empty), and a per-account store
+  history in `%APPDATA%\Deceive\store-history-*.json`.
+- Agent select alert (`Alerts.cs`, `ValorantPresence.cs`): reads your own VALORANT state from the presence
+  the Riot Client already sends through the relay, then flashes the taskbar button and plays a chime.
+- Career tab (`CareerPanel.cs`, `MatchData.cs`): rank progress, session tracker, trends, match history with
+  scoreboards and party markers, map and agent breakdown. Matches are trimmed and cached in
+  `%APPDATA%\Deceive\matches` so each is fetched once. Scoreboards only name you, your party, your friends and
+  players whose names were visible in agent select.
+- Friends tab (`FriendsPanel.cs`): friends' VALORANT activity from the presence details the relay already
+  receives (`FriendDirectory.cs`), and your party with ranks.
+- Match tab (`MatchPanel.cs`): your team's names, agents, level, rank, act record and peak rank during agent
+  select, then both teams with ranks and weapon skins once the match loads. Party markers come from your own
+  and your friends' chat status. Hidden names stay hidden unless they're on your friends list (their stats still show); hidden act ranks stay hidden. Requests
+  are only made while the tab is open and the window isn't minimized.
 - Thread-safe writes to the proxied chat streams.
 - The upstream update check is disabled, and error messages no longer send users to Deceive's issue tracker.
 

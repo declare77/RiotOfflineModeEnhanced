@@ -63,6 +63,10 @@ internal class ProxiedConnection
 
                 var content = Encoding.UTF8.GetString(bytes, 0, byteCount);
 
+                // Notice when you enter agent select or a match (read only; changes nothing).
+                if (content.Contains("<presence"))
+                    ValorantPresence.ObserveOwn(content);
+
                 // If this is possibly a presence stanza, rewrite it.
                 if (content.Contains("<presence") && MainController.Enabled)
                 {

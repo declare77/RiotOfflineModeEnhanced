@@ -41,6 +41,33 @@ USING IT
     * tick friends who should still see your real status while you appear
       offline or on mobile
 
+- The Store tab (VALORANT) shows today's four skins and the Night Market
+  when it's open, featured bundles, the Kingdom Credits store and your
+  wallet. Star skins to add them to your wishlist: on days a wishlist skin
+  is in your store, you get a Windows notification. History lists every
+  daily store the app has seen.
+
+- The Career tab (VALORANT) shows your rank and how far you are from the
+  next one, this session's results, trends over your recent matches, your
+  match history with scoreboards, and your win rate on each map and agent.
+  Each match is downloaded once and then kept on your PC.
+
+- The Friends tab shows what your friends are doing in VALORANT (in a
+  match, in agent select, in the menus) and your current party's ranks.
+
+- The Collection tab shows the skins you own, your battle pass progress
+  and upcoming rewards, and your weekly missions.
+
+- When agent select starts, the window's taskbar button flashes and a
+  chime plays (turn either off at the top of the Match tab).
+
+- The Match tab (VALORANT) shows your team while you pick agents:
+  names, agents, level, current rank and RR, this act's wins and losses and
+  peak rank. Once the match loads it shows both teams, with ranks and
+  weapon skins. Hidden names stay hidden unless they're on your friends
+  list (their stats still show), and players who hide their act rank keep
+  it hidden.
+
 - A friend called "RiotOfflineModeEnhanced" appears at the top of your friends
   list. It's not a real player. Message it to control RiotOfflineModeEnhanced
   from chat:
@@ -69,9 +96,15 @@ the file.
 GOOD TO KNOW
 ------------
 
-- RiotOfflineModeEnhanced only changes your status in Riot's chat. It doesn't
-  touch the game itself. It is still an unofficial third-party tool, so use it
-  at your own risk.
+- RiotOfflineModeEnhanced changes your status in Riot's chat. It doesn't
+  touch the game itself. The VALORANT tabs only read data from Riot's
+  VALORANT web services using your Riot Client session, and only while that
+  tab is open. The one exception is the wishlist check, once per daily store
+  reset while your wishlist isn't empty. It is still an unofficial
+  third-party tool, so use it at your own risk.
+
+- If the Store or Match tab can't find your region, launch VALORANT
+  once with the app running. It remembers your region after that.
 
 - Friends you tick only see you if they're on your friends list. If a name
   shows "Not on friends list", check the spelling and the #tag.
